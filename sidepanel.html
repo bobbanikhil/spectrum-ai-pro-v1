@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>Spectrum AI - Your Ultimate AI Assistant</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="sidepanel.css">
+</head>
+<body>
+    <div id="background-aurora"></div>
+    <div class="container">
+        <header class="header">
+            <h1>✨ Spectrum AI</h1>
+        </header>
+
+        <div class="tabs" role="tablist" aria-label="Spectrum AI features">
+            <button class="tab-link active" role="tab" data-tab="auditor">🔍 Auditor</button>
+            <button class="tab-link" role="tab" data-tab="email-drafter">✉️ Email</button>
+            <button class="tab-link" role="tab" data-tab="organizer">🗂️ Tabs</button>
+            <button class="tab-link" role="tab" data-tab="echoGuide">📹 Guide</button>
+            <button class="tab-link" role="tab" data-tab="history">📚 History</button>
+        </div>
+
+        <main id="auditor" class="tab-content active" role="tabpanel">
+            <div class="split-layout">
+                <div class="split-pane left-pane">
+                    <div class="panel">
+                        <div class="panel-header">🤖 AI Assistant</div>
+                        <div class="panel-content">
+                            <div class="action-panel">
+                                <button id="auditButton">🚀 Run 12-Point Audit</button>
+                            </div>
+                            <div id="aiActionsPanel" class="action-panel-grid" style="display: none;">
+                                <button id="summarizeButton" class="ai-action-button">📄 Summarize</button>
+                                <button id="proofreadButton" class="ai-action-button">✏️ Proofread</button>
+                                <button id="rewriteTitleButton" class="ai-action-button">🔄 Rewrite Title</button>
+                            </div>
+                            <div id="chat-status"><p class="placeholder">Click 'Run Audit' to begin analysis</p></div>
+                            <div id="auditor-chat-container" class="chat-container" style="display: none;">
+                                <div id="auditor-chat-messages" class="chat-messages"></div>
+                                <div class="chat-input-area">
+                                    <input type="text" id="auditor-chat-input" class="chat-input" placeholder="Ask about the audit...">
+                                    <button id="auditor-chat-send" class="chat-send-btn">Send</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="split-resizer"></div>
+                <div class="split-pane right-pane">
+                    <div class="panel">
+                        <div class="panel-header">
+                            <span>📊 Audit Report</span>
+                            <button id="copyButton" style="display: none; margin-left: auto;">📋 Copy</button>
+                        </div>
+                        <div class="panel-content">
+                            <div id="loader" class="loader"></div>
+                            <div id="results"><p class="placeholder">Your detailed audit report will appear here</p></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <main id="email-drafter" class="tab-content" role="tabpanel" hidden>
+            <div class="split-layout">
+                <div class="split-pane left-pane">
+                    <div class="panel">
+                        <div class="panel-header">✉️ Email Configuration</div>
+                        <div class="panel-content">
+                            <div class="email-drafter-form">
+                                <div class="form-group">
+                                    <label for="email-tone">🎭 Tone</label>
+                                    <select id="email-tone" class="form-select">
+                                        <option value="professional">Professional</option>
+                                        <option value="casual">Casual & Friendly</option>
+                                        <option value="formal">Formal</option>
+                                        <option value="enthusiastic">Enthusiastic</option>
+                                        <option value="persuasive">Persuasive</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label for="email-objective">🎯 Objective</label>
+                                    <select id="email-objective" class="form-select">
+                                        <option value="inquiry">Inquiry / Question</option>
+                                        <option value="thank-you">Thank You</option>
+                                        <option value="follow-up">Follow-up</option>
+                                        <option value="proposal">Proposal / Pitch</option>
+                                        <option value="summary">Summary of Current Page</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label for="email-context">📝 Additional Context (Optional)</label>
+                                    <textarea id="email-context" class="form-textarea" rows="3" placeholder="Add any specific details..."></textarea>
+                                </div>
+                                <button id="draftEmailButton" class="primary-button">✨ Draft Email</button>
+                            </div>
+                            <div id="email-drafter-status" class="status-message">
+                                <p class="placeholder">Configure and click "Draft Email"</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="split-resizer"></div>
+                <div class="split-pane right-pane">
+                    <div class="panel">
+                        <div class="panel-header">
+                            <span>📧 Generated Email</span>
+                            <button id="copyEmailButton" style="display: none; margin-left: auto;">📋 Copy</button>
+                        </div>
+                        <div class="panel-content">
+                            <div id="email-loader" class="loader"></div>
+                            <div id="email-results"><p class="placeholder">Your perfectly drafted email will appear here</p></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <main id="organizer" class="tab-content" role="tabpanel" hidden>
+            <div class="split-layout">
+                <div class="split-pane left-pane">
+                    <div class="panel">
+                        <div class="panel-header">🗂️ Tab Actions</div>
+                        <div class="panel-content">
+                            <div class="action-panel">
+                                <button id="organizeTabsButton">🚀 Analyze & Group Tabs</button>
+                            </div>
+                            <div id="organizer-status"><p class="placeholder">Click to categorize open tabs.</p></div>
+                            <div id="organizer-chat-container" class="chat-container" style="display: none;">
+                                <div class="panel-header" style="border-radius: var(--radius) var(--radius) 0 0; margin: -1rem -1rem 1rem -1rem;">Group Chat</div>
+                                <div id="organizer-chat-messages" class="chat-messages"></div>
+                                <div class="chat-input-area">
+                                    <input type="text" id="organizer-chat-input" class="chat-input" placeholder="Ask about this group...">
+                                    <button id="organizer-chat-send" class="chat-send-btn">Send</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="split-resizer"></div>
+                <div class="split-pane right-pane">
+                    <div class="panel">
+                        <div class="panel-header">📁 Tab Groups</div>
+                        <div class="panel-content">
+                            <div id="organizer-loader" class="loader"></div>
+                            <div id="organizer-results"><p class="placeholder">AI-generated tab groups will appear here.</p></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <main id="echoGuide" class="tab-content" role="tabpanel" hidden>
+            <div class="split-layout">
+                <div class="split-pane left-pane">
+                    <div class="panel">
+                        <div class="panel-header">📹 Recording Controls</div>
+                        <div class="panel-content">
+                            <div class="action-panel echoGuide-controls">
+                                <button id="startEchoGuideButton">🔴 Start Recording</button>
+                                <button id="stopEchoGuideButton" style="display: none;">⏹️ Stop & Generate Guide</button>
+                            </div>
+                            <div id="echoGuideActionsPanel" class="action-panel-grid" style="display: none;">
+                                <button id="generalizeWorkflowButton" class="ai-action-button">🔄 Generalize</button>
+                                <button id="createQandAButton" class="ai-action-button">❓ Q&A</button>
+                                <button id="downloadPdfButton" class="ai-action-button" style="grid-column: 1 / -1;">📥 Download PDF</button>
+                            </div>
+                            <div id="echoGuide-status"><p class="placeholder">Click 'Start Recording' to begin.</p></div>
+                             <div id="echoGuide-chat-container" class="chat-container" style="display: none;">
+                                <div class="panel-header" style="border-radius: var(--radius) var(--radius) 0 0; margin: -1rem -1rem 1rem -1rem;">Guide Chat</div>
+                                <div id="echoGuide-chat-messages" class="chat-messages"></div>
+                                <div class="chat-input-area">
+                                    <input type="text" id="echoGuide-chat-input" class="chat-input" placeholder="Ask about the guide...">
+                                    <button id="echoGuide-chat-send" class="chat-send-btn">Send</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="split-resizer"></div>
+                <div class="split-pane right-pane">
+                    <div class="panel">
+                        <div class="panel-header">📖 Workflow Guide</div>
+                        <div class="panel-content">
+                            <div id="echoGuide-loader" class="loader"></div>
+                            <div id="echoGuide-results"><p class="placeholder">Your step-by-step guide will appear here.</p></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <main id="history" class="tab-content" role="tabpanel" hidden>
+            <div class="action-panel history-controls">
+                <input type="search" id="historySearchInput" class="form-textarea" placeholder="🔍 Search reports by URL...">
+                <button id="clearHistoryButton">🗑️ Clear All History</button>
+            </div>
+            <div id="history-results" class="results-container"><p class="placeholder">Your past audit reports will appear here.</p></div>
+        </main>
+
+    </div>
+    <script src="jspdf.umd.min.js"></script>
+    <script src="sidepanel.js"></script>
+</body>
+</html>

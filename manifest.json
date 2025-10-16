@@ -1,0 +1,43 @@
+{
+    "manifest_version": 3,
+    "name": "Spectrum AI",
+    "version": "2.2",
+    "description": "On-device AI assistant for advanced web auditing, content analysis, and workflow automation.",
+    "permissions": [
+      "sidePanel",
+      "contextMenus",
+      "scripting",
+      "activeTab",
+      "storage",
+      "tabs",
+      "tabGroups",
+      "pageCapture",
+      "notifications",
+      "webNavigation",
+      "languageModel"
+    ],
+    "host_permissions": [
+      "<all_urls>"
+    ],
+    "background": {
+      "service_worker": "service-worker.js"
+    },
+    "side_panel": {
+      "default_path": "sidepanel.html"
+    },
+    "action": {
+      "default_title": "Open Spectrum AI"
+    },
+    "icons": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    },
+    "web_accessible_resources": [
+      {
+        "resources": ["scribe.css"],
+        "matches": ["<all_urls>"]
+      }
+    ],
+    "options_page": "setup.html"
+  }
