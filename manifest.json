@@ -1,43 +1,68 @@
 {
-    "manifest_version": 3,
-    "name": "Spectrum AI",
-    "version": "2.2",
-    "description": "On-device AI assistant for advanced web auditing, content analysis, and workflow automation.",
-    "permissions": [
-      "sidePanel",
-      "contextMenus",
-      "scripting",
-      "activeTab",
-      "storage",
-      "tabs",
-      "tabGroups",
-      "pageCapture",
-      "notifications",
-      "webNavigation",
-      "languageModel"
-    ],
-    "host_permissions": [
-      "<all_urls>"
-    ],
-    "background": {
-      "service_worker": "service-worker.js"
+  "manifest_version": 3,
+  "name": "Spectrum AI Pro",
+  "version": "2.0",
+  "description": "Professional on-device AI assistant for web auditing, content analysis, and workflow automation with Google-grade accuracy.",
+  "permissions": [
+    "sidePanel",
+    "contextMenus",
+    "scripting",
+    "activeTab",
+    "storage",
+    "tabs",
+    "tabGroups",
+    "pageCapture",
+    "languageModel",
+    "alarms",
+    "notifications",
+    "action"
+  ],
+  "host_permissions": [
+    "<all_urls>"
+  ],
+  "background": {
+    "service_worker": "service-worker.js"
+  },
+  "side_panel": {
+    "default_path": "sidepanel.html"
+  },
+  "action": {
+    "default_title": "Open Spectrum AI Pro",
+    "default_popup": "popup.html"
+  },
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "web_accessible_resources": [
+    {
+      "resources": ["scribe.css"],
+      "matches": ["<all_urls>"]
+    }
+  ],
+  "options_page": "setup.html",
+  "commands": {
+    "run-audit": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+A",
+        "mac": "Command+Shift+A"
+      },
+      "description": "Run comprehensive page audit"
     },
-    "side_panel": {
-      "default_path": "sidepanel.html"
+    "start-scribe": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+S",
+        "mac": "Command+Shift+S"
+      },
+      "description": "Start Scribe recording"
     },
-    "action": {
-      "default_title": "Open Spectrum AI"
-    },
-    "icons": {
-      "16": "icons/icon16.png",
-      "48": "icons/icon48.png",
-      "128": "icons/icon128.png"
-    },
-    "web_accessible_resources": [
-      {
-        "resources": ["scribe.css"],
-        "matches": ["<all_urls>"]
-      }
-    ],
-    "options_page": "setup.html"
+    "organize-tabs": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+O",
+        "mac": "Command+Shift+O"
+      },
+      "description": "Organize tabs with AI"
+    }
   }
+}

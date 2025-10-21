@@ -1,34 +1,331 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Spectrum AI Setup</title>
+    <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spectrum AI Pro - Welcome & Setup</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="sidepanel.css">
     <style>
-        body { padding: 2rem; background-color: #0d1117; }
-        main { max-width: 700px; margin: auto; }
-        .setup-step {
-            background: var(--glass-background); border: 1px solid var(--glass-border);
-            border-radius: var(--radius); padding: 1.5rem; margin-bottom: 1.5rem;
+        :root {
+            --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            --color-primary: #0b57d0;
+            --color-secondary: #09864d;
+            --color-surface: #ffffff;
+            --color-background: #f8f9fa;
+            --color-on-surface: #1f1f1f;
+            --color-on-surface-variant: #5e5e5e;
+            --color-outline: #e8eaed;
+            --radius-lg: 12px;
+            --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            --spacing-lg: 24px;
         }
-        .setup-step h3 { margin-top: 0; color: var(--color-accent); }
-        .setup-step p { color: var(--color-text-faded); }
-        .setup-step button { margin-top: 1rem; }
-        .status { padding: 1.5rem; border-radius: 8px; margin-top: 1.5rem; border: 1px solid; }
-        .status.success { background-color: rgba(39, 174, 96, 0.1); border-color: #27ae60; }
-        .status.error { background-color: rgba(192, 57, 43, 0.1); border-color: #c0392b; }
-        code { background-color: rgba(0,0,0,0.3); padding: 3px 6px; border-radius: 4px; font-family: monospace; }
+
+        body {
+            font-family: var(--font-family);
+            background: var(--color-background);
+            color: var(--color-on-surface);
+            margin: 0;
+            padding: 0;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: var(--spacing-lg);
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: var(--spacing-lg);
+            padding: var(--spacing-lg);
+            background: var(--color-surface);
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow-md);
+        }
+
+        .header h1 {
+            margin: 0;
+            background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-secondary) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            font-size: 2.5rem;
+            font-weight: 700;
+        }
+
+        .section {
+            background: var(--color-surface);
+            border-radius: var(--radius-lg);
+            padding: var(--spacing-lg);
+            margin-bottom: var(--spacing-lg);
+            box-shadow: var(--shadow-md);
+        }
+
+        .section h2 {
+            color: var(--color-primary);
+            margin-top: 0;
+            border-bottom: 2px solid var(--color-outline);
+            padding-bottom: 8px;
+        }
+
+        .feature-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: var(--spacing-lg);
+            margin: var(--spacing-lg) 0;
+        }
+
+        .feature-card {
+            padding: var(--spacing-lg);
+            background: #f8f9fa;
+            border-radius: var(--radius-lg);
+            border-left: 4px solid var(--color-primary);
+        }
+
+        .feature-card h3 {
+            margin-top: 0;
+            color: var(--color-primary);
+        }
+
+        .step {
+            display: flex;
+            align-items: flex-start;
+            margin-bottom: var(--spacing-lg);
+            padding: var(--spacing-lg);
+            background: #f8f9fa;
+            border-radius: var(--radius-lg);
+        }
+
+        .step-number {
+            background: var(--color-primary);
+            color: white;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            margin-right: var(--spacing-lg);
+            flex-shrink: 0;
+        }
+
+        .btn {
+            background: var(--color-primary);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-weight: 500;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-block;
+            transition: all 0.2s ease;
+        }
+
+        .btn:hover {
+            background: #0a4fc0;
+            transform: translateY(-1px);
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+        }
+
+        .btn-secondary:hover {
+            background: #5a6268;
+        }
+
+        .keyboard-shortcut {
+            background: #e9ecef;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 0.9em;
+        }
+
+        .status-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+
+        .status-success { background: #28a745; }
+        .status-warning { background: #ffc107; }
+        .status-error { background: #dc3545; }
+
+        .footer {
+            text-align: center;
+            margin-top: var(--spacing-lg);
+            padding: var(--spacing-lg);
+            background: var(--color-surface);
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow-md);
+            color: var(--color-on-surface-variant);
+        }
     </style>
+<base target="_blank">
 </head>
 <body>
-    <div id="background-aurora"></div>
-    <main>
-        <header class="header"><h1>Welcome to Spectrum AI</h1></header>
-        <p style="text-align: center; color: var(--color-text-faded); margin-bottom: 2rem;">Let's get your on-device AI ready. This is a one-time setup.</p>
-        <div id="status-container">
+    <div class="container">
+        <header class="header">
+            <h1>Spectrum AI Pro</h1>
+            <p>Professional on-device AI assistant for web development and content analysis</p>
+            <p><small>Privacy-first • Google-grade accuracy • Lightning fast</small></p>
+        </header>
+
+        <div class="section">
+            <h2>🚀 Quick Start</h2>
+            <p>Get started with Spectrum AI Pro in just a few steps:</p>
+
+            <div class="step">
+                <div class="step-number">1</div>
+                <div>
+                    <h3>Enable Chrome AI Features</h3>
+                    <p>Make sure you have Chrome 127+ and enable the required flags:</p>
+                    <ul>
+                        <li>Go to <code>chrome://flags/#prompt-api-for-gemini-nano</code> → Enable</li>
+                        <li>Go to <code>chrome://flags/#optimization-guide-on-device-model</code> → Enable</li>
+                        <li>Restart Chrome completely</li>
+                    </ul>
+                </div>
             </div>
-    </main>
-    <script src="setup.js"></script>
+
+            <div class="step">
+                <div class="step-number">2</div>
+                <div>
+                    <h3>Download AI Model</h3>
+                    <p>Get the on-device AI model for local processing:</p>
+                    <ul>
+                        <li>Go to <code>chrome://components</code></li>
+                        <li>Find "Optimization Guide On Device Model"</li>
+                        <li>Click "Check for update"</li>
+                        <li>Wait for download to complete (may take a few minutes)</li>
+                        <li>Restart Chrome once more</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="step">
+                <div class="step-number">3</div>
+                <div>
+                    <h3>Start Using Spectrum AI</h3>
+                    <p>Right-click on any webpage and select "Open Spectrum AI" or use the keyboard shortcuts:</p>
+                    <ul>
+                        <li><span class="keyboard-shortcut">⌘+⇧+A</span> Run comprehensive audit</li>
+                        <li><span class="keyboard-shortcut">⌘+⇧+S</span> Start Scribe recording</li>
+                        <li><span class="keyboard-shortcut">⌘+⇧+O</span> Organize tabs with AI</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>✨ Key Features</h2>
+
+            <div class="feature-grid">
+                <div class="feature-card">
+                    <h3>🎯 12-Point Web Auditor</h3>
+                    <p>Comprehensive analysis covering Performance, SEO, Accessibility, Security, Mobile Experience, Code Quality, UX, Content, and more.</p>
+                    <ul>
+                        <li>Real-time scoring with actionable recommendations</li>
+                        <li>AI-powered insights and quick wins</li>
+                        <li>Export reports in multiple formats</li>
+                    </ul>
+                </div>
+
+                <div class="feature-card">
+                    <h3>✍️ AI Content Coach</h3>
+                    <p>Advanced content analysis with brand voice alignment and engagement optimization.</p>
+                    <ul>
+                        <li>Brand voice scoring and suggestions</li>
+                        <li>Readability and engagement analysis</li>
+                        <li>Context-aware reply generation</li>
+                    </ul>
+                </div>
+
+                <div class="feature-card">
+                    <h3>📁 Smart Tab Organizer</h3>
+                    <p>AI-powered tab grouping and workspace management for better productivity.</p>
+                    <ul>
+                        <li>Intelligent categorization of open tabs</li>
+                        <li>Context-aware group naming</li>
+                        <li>Research workflow optimization</li>
+                    </ul>
+                </div>
+
+                <div class="feature-card">
+                    <h3>📝 Scribe Workflow Recorder</h3>
+                    <p>Automatically document your workflows and create step-by-step guides.</p>
+                    <ul>
+                        <li>Cross-page action recording</li>
+                        <li>AI-generated instructions with screenshots</li>
+                        <li>PDF export and workflow generalization</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>🔧 System Requirements</h2>
+            <ul>
+                <li><span class="status-indicator status-success"></span>Chrome 127 or newer</li>
+                <li><span class="status-indicator status-success"></span>8GB+ RAM recommended</li>
+                <li><span class="status-indicator status-warning"></span>2GB+ free disk space for AI model</li>
+                <li><span class="status-indicator status-success"></span>Internet connection for initial setup</li>
+            </ul>
+
+            <h3>Privacy & Security</h3>
+            <p><strong>Spectrum AI Pro processes everything on-device.</strong> Your browsing data, content analysis, and workflow recordings never leave your computer. All AI operations run locally using Chrome's built-in Gemini Nano model.</p>
+        </div>
+
+        <div class="section">
+            <h2>🎯 Pro Tips</h2>
+            <ul>
+                <li><strong>Keyboard-first workflow:</strong> Use shortcuts for maximum efficiency</li>
+                <li><strong>Batch analysis:</strong> Run audits on multiple pages for comprehensive insights</li>
+                <li><strong>Brand consistency:</strong> Set your brand voice once for consistent content analysis</li>
+                <li><strong>History tracking:</strong> Monitor your improvements over time with saved reports</li>
+                <li><strong>Context switching:</strong> Use tab organizer before starting focused work sessions</li>
+            </ul>
+        </div>
+
+        <div class="section">
+            <h2>📞 Support & Feedback</h2>
+            <p>Need help or have suggestions? We'd love to hear from you!</p>
+            <a href="https://github.com/spectrum-ai/spectrum-ai-pro" class="btn" target="_blank">
+                🐛 Report Issues & Feature Requests
+            </a>
+            <a href="https://spectrum-ai.pro/docs" class="btn btn-secondary" target="_blank" style="margin-left: 12px;">
+                📚 Documentation
+            </a>
+        </div>
+
+        <div class="footer">
+            <p><strong>Spectrum AI Pro</strong> - Built with ❤️ for the web development community</p>
+            <p><small>Powered by Chrome's built-in AI • Privacy-first design • Professional-grade accuracy</small></p>
+        </div>
+    </div>
+
+    <script>
+        // Check AI availability on page load
+        document.addEventListener('DOMContentLoaded', () => {
+            if (typeof self.LanguageModel === 'undefined') {
+                const statusElement = document.createElement('div');
+                statusElement.innerHTML = `
+                    <div style="background: #fff3cd; border: 1px solid #ffeaa7; padding: 16px; border-radius: 8px; margin: 16px 0;">
+                        <h3 style="color: #856404; margin-top: 0;">⚠️ AI Model Not Detected</h3>
+                        <p style="color: #856404; margin-bottom: 0;">Please follow the setup steps above to enable Chrome's built-in AI features.</p>
+                    </div>
+                `;
+                document.querySelector('.section').insertBefore(statusElement, document.querySelector('.step'));
+            }
+        });
+    </script>
 </body>
 </html>
