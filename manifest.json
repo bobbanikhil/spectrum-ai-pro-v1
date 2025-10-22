@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "Spectrum AI Pro",
+  "name": "Spectrum AI Pro Enhanced",
   "version": "2.0",
-  "description": "Professional on-device AI assistant for web auditing, content analysis, and workflow automation with Google-grade accuracy.",
+  "description": "Advanced AI-powered web analysis, intelligent tab organization, and workflow documentation with enhanced UI/UX and contextual features.",
   "permissions": [
     "sidePanel",
     "contextMenus",
@@ -27,7 +27,7 @@
     "default_path": "sidepanel.html"
   },
   "action": {
-    "default_title": "Open Spectrum AI Pro",
+    "default_title": "Open Spectrum AI Pro Enhanced",
     "default_popup": "popup.html"
   },
   "icons": {
@@ -37,7 +37,7 @@
   },
   "web_accessible_resources": [
     {
-      "resources": ["scribe.css"],
+      "resources": ["scribe.css", "sidepanel.css"],
       "matches": ["<all_urls>"]
     }
   ],
@@ -48,21 +48,24 @@
         "default": "Ctrl+Shift+A",
         "mac": "Command+Shift+A"
       },
-      "description": "Run comprehensive page audit"
+      "description": "Run comprehensive 12-point website audit"
     },
     "start-scribe": {
       "suggested_key": {
         "default": "Ctrl+Shift+S",
         "mac": "Command+Shift+S"
       },
-      "description": "Start Scribe recording"
+      "description": "Start Scribe workflow recording"
     },
     "organize-tabs": {
       "suggested_key": {
         "default": "Ctrl+Shift+O",
         "mac": "Command+Shift+O"
       },
-      "description": "Organize tabs with AI"
+      "description": "Organize tabs with AI intelligence"
     }
+  },
+  "content_security_policy": {
+    "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self'"
   }
 }

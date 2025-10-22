@@ -1,0 +1,245 @@
+/**
+ * Scribe Styles
+ * Visual indicators and styles for workflow recording
+ */
+
+/* Recording indicator styles */
+#scribe-recording-indicator {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 2147483647;
+    background: #ef4444;
+    color: white;
+    padding: 8px 16px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    animation: scribePulse 2s infinite;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    line-height: 1.4;
+}
+
+#scribe-recording-indicator span {
+    animation: scribePulseDot 1s infinite;
+}
+
+@keyframes scribePulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.8; }
+}
+
+@keyframes scribePulseDot {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.6; transform: scale(1.1); }
+}
+
+/* Highlight elements being recorded */
+.scribe-highlight {
+    outline: 2px solid #3b82f6 !important;
+    outline-offset: 2px !important;
+    background-color: rgba(59, 130, 246, 0.1) !important;
+    transition: all 0.2s ease !important;
+}
+
+/* Click animation */
+.scribe-click-animation {
+    position: relative;
+    overflow: hidden;
+}
+
+.scribe-click-animation::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 20px;
+    height: 20px;
+    background: rgba(59, 130, 246, 0.6);
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+    animation: scribeClickRipple 0.6s ease-out;
+    pointer-events: none;
+}
+
+@keyframes scribeClickRipple {
+    0% {
+        width: 20px;
+        height: 20px;
+        opacity: 0.6;
+    }
+    100% {
+        width: 60px;
+        height: 60px;
+        opacity: 0;
+    }
+}
+
+/* Form interaction highlighting */
+.scribe-form-highlight {
+    border: 2px solid #10b981 !important;
+    box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.2) !important;
+}
+
+/* Input field highlighting */
+.scribe-input-highlight {
+    background-color: rgba(16, 185, 129, 0.1) !important;
+    border-color: #10b981 !important;
+}
+
+/* Navigation indicator */
+.scribe-navigation-indicator {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: rgba(0, 0, 0, 0.8);
+    color: white;
+    padding: 16px 24px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 500;
+    z-index: 2147483647;
+    animation: scribeNavigationFade 2s ease-out forwards;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    text-align: center;
+    max-width: 300px;
+    line-height: 1.4;
+}
+
+@keyframes scribeNavigationFade {
+    0% {
+        opacity: 0;
+        transform: translate(-50%, -50%) scale(0.8);
+    }
+    20% {
+        opacity: 1;
+        transform: translate(-50%, -50%) scale(1);
+    }
+    80% {
+        opacity: 1;
+        transform: translate(-50%, -50%) scale(1);
+    }
+    100% {
+        opacity: 0;
+        transform: translate(-50%, -50%) scale(0.8);
+    }
+}
+
+/* Keyboard shortcut indicator */
+.scribe-keyboard-indicator {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    background: rgba(0, 0, 0, 0.8);
+    color: white;
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 500;
+    z-index: 2147483646;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    opacity: 0.8;
+    line-height: 1.3;
+}
+
+/* Ensure styles don't interfere with page layout */
+.scribe-no-layout {
+    position: fixed !important;
+    pointer-events: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: none !important;
+    background: none !important;
+    width: auto !important;
+    height: auto !important;
+    min-width: auto !important;
+    min-height: auto !important;
+    max-width: none !important;
+    max-height: none !important;
+    top: auto !important;
+    left: auto !important;
+    right: auto !important;
+    bottom: auto !important;
+    float: none !important;
+    clear: none !important;
+    display: block !important;
+    visibility: visible !important;
+    z-index: 2147483647 !important;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    #scribe-recording-indicator {
+        top: 10px;
+        right: 10px;
+        font-size: 11px;
+        padding: 6px 12px;
+    }
+
+    .scribe-keyboard-indicator {
+        bottom: 10px;
+        right: 10px;
+        font-size: 11px;
+        padding: 6px 10px;
+    }
+
+    .scribe-navigation-indicator {
+        padding: 12px 16px;
+        font-size: 13px;
+        max-width: 280px;
+    }
+}
+
+@media (max-width: 480px) {
+    #scribe-recording-indicator {
+        top: 5px;
+        right: 5px;
+        font-size: 10px;
+        padding: 4px 8px;
+    }
+
+    .scribe-navigation-indicator {
+        padding: 10px 14px;
+        font-size: 12px;
+        max-width: 250px;
+    }
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+    #scribe-recording-indicator {
+        border: 2px solid white;
+        box-shadow: 0 0 0 2px #ef4444;
+    }
+
+    .scribe-highlight {
+        outline: 3px solid #3b82f6 !important;
+        outline-offset: 3px !important;
+    }
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+    #scribe-recording-indicator {
+        animation: none;
+    }
+
+    #scribe-recording-indicator span {
+        animation: none;
+    }
+
+    .scribe-click-animation::after {
+        animation: none;
+    }
+
+    .scribe-navigation-indicator {
+        animation: none;
+        opacity: 0.9;
+        transform: translate(-50%, -50%);
+    }
+}
