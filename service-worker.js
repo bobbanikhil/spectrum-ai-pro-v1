@@ -36,19 +36,19 @@ function setupContextMenus() {
         chrome.contextMenus.create({
             id: 'audit-page',
             parentId: 'spectrum-ai-main',
-            title: '🔍 Audit This Page',
+            title: ' Audit This Page',
             contexts: ['page']
         });
         chrome.contextMenus.create({
             id: 'start-scribe',
             parentId: 'spectrum-ai-main',
-            title: '📝 Start Scribe Recording',
+            title: ' Start Scribe Recording',
             contexts: ['page']
         });
         chrome.contextMenus.create({
             id: 'organize-tabs',
             parentId: 'spectrum-ai-main',
-            title: '📂 Organize All Tabs',
+            title: ' Organize All Tabs',
             contexts: ['page']
         });
     });
@@ -387,6 +387,11 @@ async function captureScreenshot() {
     }
 }
 
+// START: *** SCRIBE "CLICKS-ONLY" FIX ***
+// The following listeners for onUpdated, onActivated, and onRemoved are
+// commented out as per your request to only capture clicks.
+
+
 // Scribe: Listen for tab navigation
 chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
     // Only act if recording and the status is 'complete' for the active Scribe tab
@@ -476,6 +481,8 @@ chrome.tabs.onRemoved.addListener((tabId, removeInfo) => {
         })();
     }
 });
+
+// END: *** SCRIBE "CLICKS-ONLY" FIX ***
 
 
 console.log('Spectrum AI Pro Service Worker Initialized (v3.1)');

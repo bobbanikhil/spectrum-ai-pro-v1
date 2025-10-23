@@ -1,8 +1,9 @@
 /**
- * 🏆 SPECTRUM AI PRO V3.2 - ULTIMATE EDITION
- * CSP Fixes, Scribe w/ Screenshots, Contextual Organizer, Connection Fixes
- * Uses self.LanguageModel API (corrected based on environment)
- * Added Chat fixes, Scribe accuracy fixes, Export options, History enhancements, Organizer Content Analysis, Scribe Smart Analysis.
+ * 🏆 SPECTRUM AI PRO V3.3 - STABILITY & CHAT FIX
+ * Fixes dashboard visibility by forcing "Split View" after actions.
+ * Fixes 'Receiving end does not exist' by refactoring SW communication.
+ * Fixes 'exportHistory is not defined' bug.
+ * Fixes 'No output language' AI warning.
  */
 
 'use strict';
@@ -107,11 +108,43 @@ function cacheElements() {
 
 // INIT
 document.addEventListener('DOMContentLoaded', async () => {
-    console.log('🚀 Spectrum AI Pro Sidepanel (v3.2) - Starting...');
+    console.log('🚀 Spectrum AI Pro Sidepanel (v3.3) - Starting...');
 
     cacheElements(); // Cache all elements on load
     setupEventListeners();
     setupMessageListeners();
+
+    // *** START: ROBUST ACTION HANDLING ***
+    // Check for a pending action set by the service worker
+    try {
+        const { pendingAction, pendingTabId } = await chrome.storage.local.get(['pendingAction', 'pendingTabId']);
+
+        if (pendingAction) {
+            console.log(`[Sidepanel] Found pending action: ${pendingAction}`);
+            // Clear the action *immediately* so it doesn't run twice
+            await chrome.storage.local.remove(['pendingAction', 'pendingTabId']);
+
+            // Trigger the action
+            switch(pendingAction) {
+                case 'triggerAudit':
+                    switchTab('auditor');
+                    await runAudit();
+                    break;
+                case 'startScribeRecording':
+                    switchTab('scribe');
+                    await startScribe();
+                    break;
+                case 'organizeTabs':
+                    switchTab('organizer');
+                    await organize();
+                    break;
+            }
+        }
+    } catch (e) {
+        console.error("Error checking for pending action:", e);
+    }
+    // *** END: ROBUST ACTION HANDLING ***
+
 
     showLoadingAnimation();
 
@@ -167,7 +200,7 @@ function disableAiFeatures() {
     if (el.auditBtn) el.auditBtn.style.opacity = '0.5';
     if (el.orgBtn) el.orgBtn.style.opacity = '0.5';
 
-     // Hide chat containers
+     // Hide chat containers (Handled by updateElementVisibility now, but good to ensure)
      if (el.audChat) el.audChat.style.display = 'none';
      if (el.orgChat) el.orgChat.style.display = 'none';
      if (el.scribeChat) el.scribeChat.style.display = 'none';
@@ -211,15 +244,8 @@ function setupEventListeners() {
     // View modes
     el.viewBtns?.forEach(btn => {
         btn.addEventListener('click', () => {
-            el.viewBtns.forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
-            const mode = btn.dataset.mode;
-            if(el.wrapper) {
-                el.wrapper.className = 'content-wrapper'; // Reset classes
-                if (mode === 'split') el.wrapper.classList.add('split-view');
-                else if (mode === 'results') el.wrapper.classList.add('results-only');
-                else if (mode === 'chat') el.wrapper.classList.add('chat-only');
-            }
+            // *** UPDATED: Call setViewMode to handle logic ***
+            setViewMode(btn.dataset.mode);
         });
     });
 
@@ -263,9 +289,9 @@ function setupEventListeners() {
     // History
     el.histSearch?.addEventListener('input', searchHist);
     el.histClear?.addEventListener('click', clearHist);
-    el.histExportBtn?.addEventListener('click', exportHistory);
+    el.histExportBtn?.addEventListener('click', exportHistory); // <-- FIX: Listener
     el.histImportBtn?.addEventListener('click', () => el.histImportInput?.click()); // Trigger file input click
-    el.histImportInput?.addEventListener('change', importHistory);
+    el.histImportInput?.addEventListener('change', importHistory); // <-- FIX: Listener
 
 
     // Toolbar Exports (Auditor)
@@ -291,12 +317,12 @@ function setupMessageListeners() {
 
         let isAsync = false; // Flag for async operations
 
+        // *** START: REFACTORED SCRIBE COMMUNICATION ***
+        // No longer listen for 'scribeRecordingStopped'
+        // That logic is now handled in the stopScribe() function's response
+        // *** END: REFACTORED SCRIBE COMMUNICATION ***
+
         switch(request.action) {
-            case 'scribeRecordingStopped':
-                currentScribeSteps = request.steps || []; // Ensure steps is an array
-                isAsync = true; // handleScribeStopUI is async
-                handleScribeStopUI().then(() => sendResponse({ received: true }));
-                break;
             case 'scribeStartFailed':
                 showError("Scribe Failed", `Could not start recording: ${request.error}`);
                 if (el.scribeStart) el.scribeStart.style.display = 'block';
@@ -307,30 +333,9 @@ function setupMessageListeners() {
                 updateStatus('scribe', 'Start Failed', 'error');
                 loader('scribe', false);
                 break;
-            case 'triggerAudit':
-                 isAsync = true;
-                 (async () => {
-                     // isAiAvailable will be checked inside runAudit
-                     switchTab('auditor');
-                     await runAudit(); // runAudit handles UI updates and AI check
-                     sendResponse({ received: true });
-                 })();
-                 break;
-            case 'startScribeRecording':
-                // Only switch tab, startScribe will handle the logic
-                switchTab('scribe');
-                startScribe(); // This sends a message back to SW
-                // No sendResponse here, let startScribe handle it? Or send sync? Let's send sync.
-                break;
-            case 'organizeTabs':
-                isAsync = true;
-                 (async () => {
-                     // isAiAvailable will be checked inside organize
-                     switchTab('organizer');
-                     await organize(); // organize handles UI updates and AI check
-                     sendResponse({ received: true });
-                 })();
-                 break;
+            // 'triggerAudit', 'startScribeRecording', 'organizeTabs' are
+            // no longer sent here. They are handled by the 'pendingAction'
+            // check on load.
             default:
                  console.warn("[Sidepanel] Received unhandled message:", request.action);
                  return false; // Indicate not handled
@@ -341,6 +346,24 @@ function setupMessageListeners() {
             sendResponse({ received: true });
         }
         return isAsync; // Return true only if we started an async operation and handle sendResponse there
+    });
+}
+
+// *** NEW FUNCTION: Helper to change view mode ***
+function setViewMode(mode) {
+    if (!el.wrapper) return;
+
+    // Remove all view classes
+    el.wrapper.className = 'content-wrapper';
+
+    // Add the correct class
+    if (mode === 'split') el.wrapper.classList.add('split-view');
+    else if (mode === 'results') el.wrapper.classList.add('results-only');
+    else if (mode === 'chat') el.wrapper.classList.add('chat-only');
+
+    // Update the buttons to reflect the change
+    el.viewBtns?.forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.mode === mode);
     });
 }
 
@@ -379,6 +402,13 @@ function switchTab(name) {
 
 // Helper function to manage visibility of context-specific UI elements
 function updateElementVisibility(activeTabName) {
+    // START: *** CHATBOT VISIBILITY FIX ***
+    // Show chat based on active tab, not on results state
+    if (el.audChat) el.audChat.style.display = (activeTabName === 'auditor') ? 'block' : 'none';
+    if (el.orgChat) el.orgChat.style.display = (activeTabName === 'organizer') ? 'block' : 'none';
+    if (el.scribeChat) el.scribeChat.style.display = (activeTabName === 'scribe') ? 'block' : 'none';
+    // END: *** CHATBOT VISIBILITY FIX ***
+
     const showAuditElements = activeTabName === 'auditor' && currentAuditReport && currentAuditData;
     const showScribeElements = activeTabName === 'scribe' && currentScribeSteps.length > 0;
     const showOrgElements = activeTabName === 'organizer' && currentTabGroups.length > 0; // Show if groups exist
@@ -389,7 +419,7 @@ function updateElementVisibility(activeTabName) {
 
     // Auditor specific
     if (el.aiPanel) el.aiPanel.style.display = showAuditElements && isAiAvailable ? 'block' : 'none';
-    if (el.audChat) el.audChat.style.display = showAuditElements ? 'block' : 'none';
+    // if (el.audChat) el.audChat.style.display = showAuditElements ? 'block' : 'none'; // <-- OLD LOGIC, REMOVED
     if (el.copyBtn) el.copyBtn.style.display = showAuditElements ? 'block' : 'none';
     if (el.exportMarkdownBtn) el.exportMarkdownBtn.style.display = showAuditElements ? 'block' : 'none';
     if (el.exportJsonBtn) el.exportJsonBtn.style.display = showAuditElements ? 'block' : 'none';
@@ -401,7 +431,7 @@ function updateElementVisibility(activeTabName) {
 
     // Scribe specific
     if (el.scribePanel) el.scribePanel.style.display = showScribeElements ? 'block' : 'none'; // Show actions if steps exist
-    if (el.scribeChat) el.scribeChat.style.display = showScribeElements ? 'block' : 'none'; // Show chat if steps exist
+    // if (el.scribeChat) el.scribeChat.style.display = showScribeElements ? 'block' : 'none'; // <-- OLD LOGIC, REMOVED
     // Enable/disable AI buttons within Scribe panel based on AI status
     if (el.scribePanel && el.scribePanel.style.display === 'block') {
         if (el.genBtn) el.genBtn.disabled = !isAiAvailable;
@@ -414,7 +444,7 @@ function updateElementVisibility(activeTabName) {
 
 
     // Organizer specific
-    if (el.orgChat) el.orgChat.style.display = showOrgElements ? 'block' : 'none'; // Show chat if groups exist
+    // if (el.orgChat) el.orgChat.style.display = showOrgElements ? 'block' : 'none'; // <-- OLD LOGIC, REMOVED
     if (el.orgActionsPanel) el.orgActionsPanel.style.display = showOrgActions ? 'block' : 'none'; // Show context actions only if group selected
     // Enable/disable AI buttons within Org panel based on AI status and group selection
     if (el.orgActionsPanel && el.orgActionsPanel.style.display === 'block') {
@@ -471,7 +501,9 @@ async function checkAI() {
         }
 
         console.log("[checkAI] Trying self.LanguageModel.create() test...");
+        // *** START: AI LANGUAGE FIX ***
         const s = await self.LanguageModel.create({ outputLanguage: 'en' });
+        // *** END: AI LANGUAGE FIX ***
         await s.destroy();
         console.log("[checkAI] self.LanguageModel.create() test successful.");
         return true; // Return true only if all checks pass
@@ -510,10 +542,12 @@ async function createSession() {
 
         // Proceed to create
         console.log("[createSession] Final check passed. Attempting self.LanguageModel.create()...");
+        // *** START: AI LANGUAGE FIX ***
         const session = await modelObject.create({
             systemPrompt: 'You are a professional, helpful, and concise web analyst and assistant.',
-            outputLanguage: 'en'
+            outputLanguage: 'en' // <-- FIX: Added missing parameter
         });
+        // *** END: AI LANGUAGE FIX ***
         console.log("[createSession] Session created successfully via self.LanguageModel.create().");
         return session;
     } catch (e) {
@@ -546,7 +580,7 @@ async function runAudit() {
     updateStatus('audit', 'Fetching content...', 'info');
     if (el.results) el.results.innerHTML = ''; // Clear results
     if (el.audMsgs) el.audMsgs.innerHTML = ''; // Clear previous chat messages
-    if (el.audChat) el.audChat.style.display = 'none'; // Hide chat initially
+    // if (el.audChat) el.audChat.style.display = 'none'; // <-- OLD LOGIC, REMOVED (Handled by updateElementVisibility)
     currentAuditReport = ''; // Reset state
     currentAuditData = null;
     currentAuditUrl = ''; // Reset URL
@@ -560,6 +594,11 @@ async function runAudit() {
         const data = await analyze(content.substring(0, 10000)); // Uses createSession
         currentAuditReport = data.report;
         currentAuditData = data; // Store all data including scores, etc.
+
+        // *** START: DASHBOARD VISIBILITY FIX ***
+        // Force view mode to "split" so user sees the dashboard
+        setViewMode('split');
+        // *** END: DASHBOARD VISIBILITY FIX ***
 
         await renderDash(data); // Render the dashboard
 
@@ -695,22 +734,193 @@ Ensure every section follows the Assessment/Issues/Recommendations structure.`;
      }
 }
 
-// --- DASHBOARD RENDERING --- (No changes needed)
-function fallback() { /* ... */ }
-async function renderDash(d) { /* ... */ }
-function donut(i) { /* ... */ }
-function healthDonut(s) { /* ... */ }
-function breakdown(s) { /* ... */ }
-function lvl(s) { /* ... */ }
-function grade(s) { /* ... */ }
-function hlth(s) { /* ... */ }
-function scColor(s) { /* ... */ }
-function renderMarkdown(md) { /* ... */ }
+// --- DASHBOARD RENDERING ---
+function fallback() {
+    // Fallback data
+    return {
+        score: 50, health: 50,
+        scores: { tech: 5, a11y: 5, perf: 5, sec: 5, ux: 5, content: 5, seo: 5, links: 5, conv: 5, analytics: 5, comp: 5, mobile: 5 },
+        issues: { errors: 1, warnings: 1, notices: 1 },
+        report: "# 📊 Spectrum AI Audit Report\n## 🏆 Executive Summary\nAI analysis failed. Displaying fallback data."
+    };
+}
+async function renderDash(d) {
+    if (!el.results) return;
+    el.results.innerHTML = `<div class="loader" style="display: block; margin: 100px auto;"></div>`;
+    await new Promise(resolve => setTimeout(resolve, 100)); // allow loader to render
 
-// --- AUDITOR AI ACTIONS --- (No changes needed)
-async function summarize() { /* ... */ }
-async function proofread() { /* ... */ }
-async function rewriteTitle() { /* ... */ }
+    // Ensure data exists, use fallback if not
+    const data = d || fallback();
+    const s = data.scores || fallback().scores;
+    const i = data.issues || fallback().issues;
+    const score = data.score || 50;
+    const health = data.health || 50;
+
+    el.results.innerHTML = `
+    <div class="dashboard-container" style="animation: fadeIn 0.5s ease;">
+        <div class="dashboard-stats">
+            <div class="stat-card" style="animation: scaleIn 0.4s ease 0.1s backwards;">
+                <div class="stat-label">Overall Score</div>
+                <div class="stat-value">${score}</div>
+                <div class="stat-badge ${grade(score)}">${lvl(score)}</div>
+            </div>
+            <div class="stat-card" style="animation: scaleIn 0.4s ease 0.2s backwards;">
+                <div class="stat-label">Site Health</div>
+                <div class="stat-value stat-health">${health}</div>
+                <div class="stat-badge ${hlth(health)}">${hlth(health)}</div>
+            </div>
+            <div class="stat-card" style="animation: scaleIn 0.4s ease 0.3s backwards;">
+                <div class="stat-label">Issues</div>
+                <div class="stat-value" style="color:var(--error);">${i.errors || 0}</div>
+                <div class="stat-sublabel">Errors / ${i.warnings || 0} Warnings</div>
+            </div>
+        </div>
+        <div class="dashboard-charts">
+            <div class="chart-card" style="animation: slideInUp 0.4s ease 0.4s backwards;">
+                <h3>Score Breakdown</h3>
+                <div class="donut-chart" id="scoreDonut">
+                    ${donut(score)}
+                </div>
+                <div class="chart-legend">
+                    <div><span class="legend-dot" style="background: ${scColor(score)};"></span> Score (${score})</div>
+                    <div><span class="legend-dot" style="background: var(--bg-tertiary);"></span> Remaining (100)</div>
+                </div>
+            </div>
+            <div class="chart-card" style="animation: slideInUp 0.4s ease 0.5s backwards;">
+                <h3>Health Breakdown</h3>
+                <div class="donut-chart" id="healthDonut">
+                    ${healthDonut(health)}
+                </div>
+                <div class="chart-legend">
+                    <div><span class="legend-dot" style="background: var(--success);"></span> Health (${health})</div>
+                    <div><span class="legend-dot" style="background: var(--bg-tertiary);"></span> Remaining (100)</div>
+                </div>
+            </div>
+        </div>
+        <div class="dashboard-card" style="animation: slideInUp 0.4s ease 0.6s backwards;">
+            <h3>12-Point Analysis</h3>
+            <div class="score-grid">
+                ${breakdown("Technical", s.tech)}
+                ${breakdown("Accessibility", s.a11y)}
+                ${breakdown("Performance", s.perf)}
+                ${breakdown("Security", s.sec)}
+                ${breakdown("UX Design", s.ux)}
+                ${breakdown("Content", s.content)}
+                ${breakdown("SEO", s.seo)}
+                ${breakdown("Links", s.links)}
+                ${breakdown("Conversion", s.conv)}
+                ${breakdown("Analytics", s.analytics)}
+                ${breakdown("Competitive", s.comp)}
+                ${breakdown("Mobile", s.mobile)}
+            </div>
+        </div>
+        <div class="dashboard-card" style="animation: slideInUp 0.4s ease 0.7s backwards;">
+            <button id="toggleBtn" class="toggle-report-btn">📄 View Detailed Report</button>
+            <div id="fullReport" style="display: none; margin-top: 20px; color: var(--text-secondary); line-height: 1.8; max-height: 600px; overflow-y: auto;">
+                ${renderMarkdown(data.report || 'No detailed report available.')}
+            </div>
+        </div>
+    </div>`;
+
+    // Re-attach event listener for the toggle button
+    const toggleBtn = document.getElementById('toggleBtn');
+    const reportDiv = document.getElementById('fullReport');
+    if (toggleBtn && reportDiv) {
+        toggleBtn.addEventListener('click', () => {
+            const isHidden = reportDiv.style.display === 'none';
+            reportDiv.style.display = isHidden ? 'block' : 'none';
+            toggleBtn.textContent = isHidden ? '🙈 Hide Detailed Report' : '📄 View Detailed Report';
+            if (isHidden) {
+                reportDiv.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            }
+        });
+    }
+}
+function donut(i) {
+    const r = 80, c = 2 * Math.PI * r;
+    const p = ((i || 0) / 100) * c;
+    return `
+    <svg viewBox="0 0 200 200" width="200" height="200" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="100" cy="100" r="${r}" fill="none" stroke="var(--bg-tertiary)" stroke-width="20"></circle>
+        <circle cx="100" cy="100" r="${r}" fill="none" stroke="${scColor(i)}" stroke-width="20"
+                stroke-dasharray="${p} ${c - p}" stroke-linecap="round" transform="rotate(-90 100 100)"
+                style="animation: drawStroke 1s ease-out forwards;"></circle>
+        <text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" class="donut-center"
+              style="animation: countUp 0.8s ease backwards;">${i || 0}</text>
+    </svg>`;
+}
+function healthDonut(s) {
+    const r = 80, c = 2 * Math.PI * r, p = ((s || 0) / 100) * c;
+    return `
+    <svg viewBox="0 0 200 200" width="200" height="200" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="100" cy="100" r="${r}" fill="none" stroke="var(--bg-tertiary)" stroke-width="20"></circle>
+        <circle cx="100" cy="100" r="${r}" fill="none" stroke="var(--success)" stroke-width="20"
+                stroke-dasharray="${p} ${c - p}" stroke-linecap="round" transform="rotate(-90 100 100)"
+                style="animation: drawStroke 1s ease-out 0.2s forwards;"></circle>
+        <text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" class="health-score-text"
+              fill="var(--success)" style="animation: countUp 0.8s ease 0.2s backwards;">${s || 0}</text>
+    </svg>`;
+}
+function breakdown(t, s) {
+    const score = s * 10 || 0;
+    return `
+    <div class="score-item" style="animation: scaleIn 0.4s ease backwards;">
+        <div class="score-header">
+            <span>${t}</span>
+            <span class="score-value ${grade(score)}">${score}/100</span>
+        </div>
+        <div class="score-bar-container">
+            <div class="score-bar ${grade(score)}" style="width: ${score}%; animation: expandWidth 0.8s ease 0.5s backwards;"></div>
+        </div>
+    </div>`;
+}
+function lvl(s) {
+    if (s >= 90) return 'Excellent'; if (s >= 70) return 'Good'; if (s >= 50) return 'Fair'; return 'Poor';
+}
+function grade(s) {
+    if (s >= 90) return 'badge-excellent'; if (s >= 70) return 'badge-good'; if (s >= 50) return 'badge-fair'; return 'badge-poor';
+}
+function hlth(s) {
+    if (s >= 90) return 'badge-excellent'; if (s >= 70) return 'badge-good'; if (s >= 50) return 'badge-fair'; return 'badge-poor';
+}
+function scColor(s) {
+    if (s >= 90) return 'var(--success)'; if (s >= 70) return 'var(--accent)'; if (s >= 50) return 'var(--warning)'; return 'var(--error)';
+}
+function renderMarkdown(md) {
+    if (!md) return '';
+    // Use a simple, safer renderer
+    let html = esc(md); // Basic escaping first
+    return html
+        .replace(/`([^`]+)`/g, '<code>$1</code>') // Inline code
+        .replace(/^### (.*$)/gim, '<h3 style="font-size: 16px; margin-top: 20px; margin-bottom: 10px; color: var(--text-primary);">$1</h3>') // H3
+        .replace(/^## (.*$)/gim, '<h2 style="font-size: 20px; margin-top: 24px; margin-bottom: 12px; color: var(--text-primary); border-bottom: 1px solid var(--border); padding-bottom: 8px;">$1</h2>') // H2
+        .replace(/^# (.*$)/gim, '<h1 style="font-size: 24px; margin-bottom: 16px; color: var(--text-primary);">$1</h1>') // H1
+        .replace(/^- (.*$)/gim, '<li style="margin-left: 20px; margin-bottom: 6px;">$1</li>') // List items
+        .replace(/<\/li>\s*<li/g, '</li><li') // Compact list items
+        .replace(/(<li.*<\/li>)/gs, '<ul>$1</ul>') // Wrap lists
+        .replace(/<\/ul>\s*<ul>/g, '') // Merge adjacent lists
+        .replace(/\n/g, '<br>'); // Convert remaining newlines
+}
+
+// --- AUDITOR AI ACTIONS ---
+async function summarize() {
+    if (!isAiAvailable) return showError("AI Unavailable", "Cannot summarize.");
+    if (!currentAuditReport) return showToast('No Report', 'Run an audit first.', 'warning');
+    const prompt = `Summarize this audit report in 3-5 key bullet points:\n\n${currentAuditReport.substring(0, 4000)}`;
+    await aiAction(prompt, 'Summarizing Report', 'auditor');
+}
+async function proofread() {
+    if (!isAiAvailable) return showError("AI Unavailable", "Cannot proofread.");
+    if (!currentAuditReport) return showToast('No Report', 'Run an audit first.', 'warning');
+    const prompt = `Identify spelling and grammar errors from the 'Content' section of this audit report:\n\n${currentAuditReport.substring(0, 4000)}`;
+    await aiAction(prompt, 'Proofreading Content', 'auditor');
+}
+async function rewriteTitle() {
+    if (!isAiAvailable) return showError("AI Unavailable", "Cannot rewrite titles.");
+    if (!currentAuditReport) return showToast('No Report', 'Run an audit first.', 'warning');
+    const prompt = `Suggest 3-5 alternative SEO-friendly titles based on the 'Content' and 'SEO' sections of this audit report:\n\n${currentAuditReport.substring(0, 4000)}`;
+    await aiAction(prompt, 'Generating Titles', 'auditor');
+}
 
 // Generic AI Action function (Used by Auditor, Organizer, Scribe)
 async function aiAction(prompt, msg, type) {
@@ -777,7 +987,7 @@ async function organize() {
     updateStatus('organizer', 'Analyzing tabs...', 'info');
     if(el.results) el.results.innerHTML = ''; // Clear results
     if(el.orgMsgs) el.orgMsgs.innerHTML = ''; // Clear chat
-    if(el.orgChat) el.orgChat.style.display = 'none'; // Hide chat
+    // if(el.orgChat) el.orgChat.style.display = 'none'; // <-- OLD LOGIC, REMOVED
     currentTabGroups = []; // Reset state
     selectedOrganizerGroup = { tabIds: [], groupName: null, buttonElement: null };
     disableOrganizerActions();
@@ -827,6 +1037,11 @@ Return ONLY the JSON array like: [{"groupName":"Example Research","tabIds":[123,
         }
 
         currentTabGroups = groups;
+
+        // *** START: DASHBOARD VISIBILITY FIX ***
+        setViewMode('split');
+        // *** END: DASHBOARD VISIBILITY FIX ***
+
         await showGroups(groups, valid); // Display groups
 
         updateElementVisibility('organizer'); // Show chat container
@@ -907,8 +1122,16 @@ async function showGroups(groups, tabs) {
             this.disabled = true; this.innerHTML = '⏳ Creating...';
             const originalIndex = parseInt(this.dataset.groupIndex);
             if (!isNaN(originalIndex)) {
-                await createGroup(originalIndex);
-                this.innerHTML = '✅ Created!';
+                // Find the group data from the card's parent
+                const card = this.closest('.organizer-group');
+                const tabIds = JSON.parse(card.dataset.tabIds || '[]');
+                if (tabIds.length > 0) {
+                    await createGroup(tabIds); // Pass tabIds directly
+                    this.innerHTML = '✅ Created!';
+                } else {
+                    console.error("[showGroups] No tab IDs found for group.");
+                    this.innerHTML = 'Error';
+                }
                  setTimeout(() => { this.disabled = false; this.innerHTML = '✨ Create This Tab Group'; }, 1500);
             } else {
                  console.error("[showGroups] Could not find group index for button."); this.innerHTML = 'Error';
@@ -938,8 +1161,21 @@ async function showGroups(groups, tabs) {
         });
     });
 }
-async function createGroup(originalIndex) { /* ... (no changes needed here) ... */ }
-function disableOrganizerActions() { /* ... (no changes needed here) ... */ }
+async function createGroup(tabIds) {
+    try {
+        const group = await chrome.tabs.group({ tabIds: tabIds });
+        await chrome.tabGroups.update(group, { title: "New Group", collapsed: true });
+        showToast('Group Created!', 'A new collapsed tab group was created.', 'success');
+    } catch (e) {
+        console.error("Failed to create group:", e);
+        showToast('Error', 'Could not create tab group.', 'error');
+    }
+}
+function disableOrganizerActions() {
+    selectedOrganizerGroup = { tabIds: [], groupName: null, buttonElement: null };
+    if (el.orgActionsPanel) el.orgActionsPanel.style.display = 'none';
+    if (el.orgActionContext) el.orgActionContext.textContent = 'Select a group to enable actions.';
+}
 
 // Updated Organizer Action runner
 async function runOrganizerAction(actionType) {
@@ -1042,7 +1278,7 @@ async function startScribe() {
     if(el.results) el.results.innerHTML = '<p style="text-align: center; color: var(--text-secondary); padding: 20px;">Recording workflow steps (clicks only)...</p>';
     currentScribeSteps = [];
     if (el.scribePanel) el.scribePanel.style.display = 'none';
-    if (el.scribeChat) el.scribeChat.style.display = 'none';
+    // if (el.scribeChat) el.scribeChat.style.display = 'none'; // <-- OLD LOGIC, REMOVED
     if (el.scribeMsgs) el.scribeMsgs.innerHTML = '';
 
 
@@ -1064,24 +1300,28 @@ async function stopScribe() {
     loader('scribe', true);
     if (el.scribeStop) el.scribeStop.disabled = true;
 
-    // Tell service worker to stop
+    // *** START: REFACTORED SCRIBE COMMUNICATION ***
+    // Tell service worker to stop and *get steps back in the response*
      try {
-        await chrome.runtime.sendMessage({ action: 'stopScribeRecording' });
-        console.log("[stopScribe] Sent stop message to SW.");
-        // UI update is handled in `handleScribeStopUI` after SW confirms via message
+        const response = await chrome.runtime.sendMessage({ action: 'stopScribeRecording' });
+        console.log("[stopScribe] Received stop response from SW.");
+        currentScribeSteps = response.steps || [];
+        await handleScribeStopUI(); // Now call the UI handler
     } catch (e) {
-         console.error("[stopScribe] Error sending stop message:", e);
-         showError("Scribe Error", "Could not communicate with service worker to stop recording.");
+         console.error("[stopScribe] Error sending/receiving stop message:", e);
+         showError("Scribe Error", `Could not stop recording: ${e.message}`);
          // Reset UI partially
          loader('scribe', false);
          if (el.scribeStop) el.scribeStop.disabled = false;
          updateStatus('scribe', 'Stop Failed', 'error');
     }
+    // *** END: REFACTORED SCRIBE COMMUNICATION ***
 }
 
 // Updated handler with chat logic
 async function handleScribeStopUI() {
-    console.log("[handleScribeStopUI] Received stop confirmation. Steps:", currentScribeSteps);
+    // This function is now called by stopScribe() *after* steps are received
+    console.log("[handleScribeStopUI] Processing steps:", currentScribeSteps);
     if (el.scribeStart) el.scribeStart.style.display = 'block';
     if (el.scribeStop) {
         el.scribeStop.style.display = 'none';
@@ -1090,8 +1330,8 @@ async function handleScribeStopUI() {
     }
     // Clear previous chat messages
     if (el.scribeMsgs) el.scribeMsgs.innerHTML = '';
-     // Ensure chat is hidden initially
-    if (el.scribeChat) el.scribeChat.style.display = 'none';
+     // Ensure chat is hidden initially (it will be shown by updateElementVisibility)
+    // if (el.scribeChat) el.scribeChat.style.display = 'none'; // <-- OLD LOGIC, REMOVED
 
 
     // Re-check AI availability *before* trying to use it
@@ -1105,6 +1345,10 @@ async function handleScribeStopUI() {
         }
 
         updateStatus('scribe', 'Generating guide...', 'info');
+
+        // *** START: DASHBOARD VISIBILITY FIX ***
+        setViewMode('split');
+        // *** END: DASHBOARD VISIBILITY FIX ***
 
         if (!isAiAvailable) {
              console.warn("[handleScribeStopUI] AI Unavailable, showing basic steps.");
@@ -1148,8 +1392,7 @@ function showScribeStepsWithoutAI() {
           html += `<div class="scribe-step" style="animation: slideInLeft 0.4s ease ${delay}s backwards;">
              <div class="scribe-step-header">
                  <span class="scribe-step-number">${i+1}</span>
-                 <strong>${esc(step.action)}</strong> <!-- Should be 'Click' -->
-             </div>
+                 <strong>${esc(step.action)}</strong> </div>
              <p style="color: var(--text-muted); font-style: italic;">${esc(step.details || '(No specific element details captured)')}</p>
              ${step.screenshotDataUrl ? `<img src="${step.screenshotDataUrl}" alt="Screenshot for step ${i+1}" loading="lazy" style="margin-top: 10px; max-width: 100%; height: auto; border: 1px solid var(--border); border-radius: var(--radius-sm);">` : ''}
          </div>`;
@@ -1189,12 +1432,8 @@ Instruction:`;
             html += `<div class="scribe-step" style="animation: slideInLeft 0.4s ease ${delay}s backwards;">
                 <div class="scribe-step-header">
                     <span class="scribe-step-number">${i+1}</span>
-                    <strong>${esc(step.action)}</strong> <!-- Action Type -->
-                </div>
-                 <!-- AI Generated Instruction -->
-                <p>${esc(txt)}</p>
-                <!-- Original Detail (optional, maybe shown on hover/toggle?) -->
-                <!-- <p style="color: var(--text-muted); font-size: 11px; font-style: italic;">Element: ${esc(step.details || 'N/A')}</p> -->
+                    <strong>${esc(step.action)}</strong> </div>
+                 <p>${esc(txt)}</p>
                 ${step.screenshotDataUrl ? `<img src="${step.screenshotDataUrl}" alt="Screenshot for step ${i+1}" loading="lazy" style="margin-top: 10px; max-width: 100%; height: auto; border: 1px solid var(--border); border-radius: var(--radius-sm);">` : ''}
             </div>`;
         }
@@ -1379,10 +1618,13 @@ async function getPage() {
     try {
         const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
         if (!tab) throw new Error('No active tab found.');
-        // Allow chrome-extension:// URLs for testing/debugging if needed, but block chrome://
-        if (tab.url?.startsWith('chrome://') && !tab.url.startsWith('chrome://extensions/')) {
-             throw new Error('Cannot access internal Chrome pages.');
+
+        // START: *** BUG FIX for chrome-extension:// URL ***
+        // Block both chrome:// and chrome-extension:// pages
+        if (tab.url?.startsWith('chrome://') || tab.url?.startsWith('chrome-extension://')) {
+             throw new Error('Cannot access internal Chrome or extension pages.');
         }
+        // END: *** BUG FIX ***
 
         const [{ result }] = await chrome.scripting.executeScript({
             target: { tabId: tab.id },
@@ -1550,50 +1792,150 @@ function copyReport() {
     if (!currentAuditReport) return showToast('Error', 'No report generated yet.', 'error');
     navigator.clipboard.writeText(currentAuditReport).then(() => {
         showToast('Copied', 'Audit report copied to clipboard!', 'success');
-        el.copyBtn.textContent = 'Copied!';
-         setTimeout(() => { el.copyBtn.innerHTML = '📋 Copy'; }, 2000); // Reset button text
+        if(el.copyBtn) {
+            el.copyBtn.textContent = 'Copied!';
+            setTimeout(() => { el.copyBtn.innerHTML = '📋 Copy'; }, 2000); // Reset button text
+        }
     }).catch(err => {
          console.error('Failed to copy report:', err);
          showToast('Error', 'Could not copy report to clipboard.', 'error');
     });
 }
-function exportReport() {
+function exportAuditMarkdown() {
     if (!currentAuditReport) return showToast('Error', 'No report generated yet.', 'error');
     try {
-        const blob = new Blob([currentAuditReport], { type: 'text/markdown;charset=utf-8' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        // Generate filename from URL or date
         let filename = `audit-report-${Date.now()}.md`;
-        try {
-             if (currentAuditUrl) {
+        if (currentAuditUrl) {
+            try {
                  const hostname = new URL(currentAuditUrl).hostname;
                  filename = `audit-${hostname.replace(/[^a-z0-9]/gi, '_')}-${Date.now()}.md`;
-             }
-        } catch (e) { console.warn("Could not generate filename from URL"); }
-
-        a.download = filename;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
+            } catch(e) {}
+        }
+        downloadFile(currentAuditReport, filename, 'text/markdown;charset=utf-8');
         showToast('Exported', 'Report downloaded as Markdown!', 'success');
     } catch (e) {
          console.error("Export failed:", e);
          showToast('Export Failed', e.message, 'error');
     }
 }
+function exportAuditJson() {
+    if (!currentAuditData) return showToast('Error', 'No report data available.', 'error');
+     try {
+        let filename = `audit-data-${Date.now()}.json`;
+        if (currentAuditUrl) {
+            try {
+                 const hostname = new URL(currentAuditUrl).hostname;
+                 filename = `audit-data-${hostname.replace(/[^a-z0-9]/gi, '_')}-${Date.now()}.json`;
+            } catch(e) {}
+        }
+        const jsonData = JSON.stringify(currentAuditData, null, 2);
+        downloadFile(jsonData, filename, 'application/json;charset=utf-8');
+        showToast('Exported', 'Report data downloaded as JSON!', 'success');
+    } catch (e) {
+         console.error("Export failed:", e);
+         showToast('Export Failed', e.message, 'error');
+    }
+}
+async function exportAuditPdf() {
+     if (!currentAuditReport) return showToast('Nothing to Export', 'Record a workflow first.', 'warning');
+    if (typeof jsPDF === 'undefined') {
+        showError("PDF Export Error", "jsPDF library not found. Make sure jspdf.umd.min.js is included in the extension and sidepanel.html.");
+        return;
+    }
+    updateStatus('audit', 'Generating PDF...', 'info');
+    loader('audit', true);
+     try {
+        // This is a simplified PDF export. A true "Dashboard" export would
+        // require html2canvas or a more complex jsPDF layout.
+        // This will export the *Markdown Report* as a PDF.
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF();
+        let yPos = 15;
+        const pageHeight = doc.internal.pageSize.height;
+        const margin = 15;
+        const maxWidth = doc.internal.pageSize.width - margin * 2;
+
+        doc.setFontSize(18);
+        let title = "Audit Report";
+        if(currentAuditUrl) {
+            try { title = new URL(currentAuditUrl).hostname; } catch(e){}
+        }
+        doc.text(title, margin, yPos);
+        yPos += 10;
+        doc.setFontSize(10);
+        doc.setTextColor(150);
+        doc.text(`Generated: ${new Date().toLocaleString()}`, margin, yPos);
+        yPos += 15;
+
+        doc.setTextColor(0);
+        doc.setFontSize(12);
+
+        // Convert markdown to lines for PDF
+        // This is a VERY basic conversion
+        const lines = currentAuditReport
+            .replace(/^# (.*)/gm, '##HEADING1##$1')
+            .replace(/^## (.*)/gm, '##HEADING2##$1')
+            .replace(/^### (.*)/gm, '##HEADING3##$1')
+            .replace(/^- (.*)/gm, '##BULLET##$1')
+            .replace(/\*\*(.*)\*\*/g, '##BOLD##$1##ENDBOLD##')
+            .split('\n');
+
+        for(const line of lines) {
+            if (yPos > pageHeight - margin) {
+                doc.addPage();
+                yPos = margin;
+            }
+
+            if (line.startsWith('##HEADING1##')) {
+                doc.setFont(undefined, 'bold'); doc.setFontSize(18);
+                doc.text(line.replace('##HEADING1##', ''), margin, yPos);
+                yPos += 10;
+            } else if (line.startsWith('##HEADING2##')) {
+                doc.setFont(undefined, 'bold'); doc.setFontSize(14);
+                doc.text(line.replace('##HEADING2##', ''), margin, yPos);
+                yPos += 8;
+            } else if (line.startsWith('##HEADING3##')) {
+                doc.setFont(undefined, 'bold'); doc.setFontSize(12);
+                doc.text(line.replace('##HEADING3##', ''), margin, yPos);
+                yPos += 7;
+            } else if (line.startsWith('##BULLET##')) {
+                doc.setFont(undefined, 'normal'); doc.setFontSize(11);
+                doc.text(`• ${line.replace('##BULLET##', '')}`, margin + 5, yPos);
+                yPos += 6;
+            } else {
+                doc.setFont(undefined, 'normal'); doc.setFontSize(11);
+                const splitLines = doc.splitTextToSize(line, maxWidth);
+                doc.text(splitLines, margin, yPos);
+                yPos += (splitLines.length * 5);
+            }
+            yPos += 2; // Line spacing
+        }
+
+        let filename = `audit-report-${Date.now()}.pdf`;
+        if (currentAuditUrl) {
+             try {
+                 const hostname = new URL(currentAuditUrl).hostname;
+                 filename = `audit-${hostname.replace(/[^a-z0-9]/gi, '_')}-${Date.now()}.pdf`;
+             } catch(e) {}
+        }
+        doc.save(filename);
+        updateStatus('audit', '📥 Exported PDF!', 'success');
+    } catch (e) {
+        console.error("[exportAuditPdf] Failed:", e);
+        showError("PDF Export Failed", `Could not generate PDF: ${e.message}`);
+        updateStatus('audit', 'PDF Export Failed', 'error');
+    } finally {
+        loader('audit', false);
+    }
+}
 function toggleFullscreen() {
     // Simple toggle between split and results-only
     if (el.wrapper.classList.contains('results-only')) {
-        el.wrapper.classList.remove('results-only');
-        el.wrapper.classList.add('split-view');
+        setViewMode('split');
         el.fullscreenBtn.innerHTML = '🔍'; // Magnifying glass icon
         el.fullscreenBtn.title = 'Enter Fullscreen Results';
     } else {
-        el.wrapper.classList.remove('split-view');
-        el.wrapper.classList.add('results-only');
+        setViewMode('results');
         el.fullscreenBtn.innerHTML = '📖'; // Book icon or similar for split view
         el.fullscreenBtn.title = 'Exit Fullscreen (Show Controls)';
 
@@ -1604,24 +1946,7 @@ function esc(t) {
     if (!t) return '';
     const d = document.createElement('div');
     d.textContent = t; // Use textContent to prevent XSS from input 't'
-    // Basic Markdown conversion - adjust as needed
-    return d.innerHTML // Now contains HTML escaped version of t
-        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>') // Bold
-        .replace(/\*(.*?)\*/g, '<em>$1</em>')   // Italic
-        .replace(/`([^`]+)`/g, '<code>$1</code>') // Inline code
-        .replace(/^### (.*$)/gim, '<h3>$1</h3>') // H3
-        .replace(/^## (.*$)/gim, '<h2>$1</h2>') // H2
-        .replace(/^# (.*$)/gim, '<h1>$1</h1>')   // H1
-        .replace(/^- (.*$)/gim, '<li>$1</li>')  // List items
-        // Basic wrapping for lists (imperfect, might wrap non-list items)
-        .replace(/(<li>.*<\/li>)/gs, (match) => {
-             // Avoid wrapping if already inside a ul/ol
-             // This regex logic gets complex fast, keeping it simple
-             return `<ul>${match}</ul>`;
-        })
-        // Replace consecutive </ul ><ul> generated above
-        .replace(/<\/ul>\s*<ul>/g, '')
-        .replace(/\n/g, '<br>'); // Convert remaining newlines
+    return d.innerHTML; // Return HTML-escaped string
  }
 
 
@@ -1643,17 +1968,22 @@ async function chat(type) {
     inp.value = '';
 
     let ctx = '';
-    const baseInstruction = " Provide a concise answer based *only* on the provided context. If the context doesn't contain the answer, say so clearly.";
-    if (type === 'auditor' && currentAuditReport) {
-        ctx = `Context: Audit Report (first 2000 chars):\n${currentAuditReport.substring(0, 2000)}\n\nUser Question: ${msg}\n\n${baseInstruction}`;
-    } else if (type === 'organizer' && currentTabGroups.length > 0) {
-        const info = currentTabGroups.map(g => `${g.groupName}: ${g.tabIds.length} tabs`).join(', ');
-        ctx = `Context: Tabs were organized into these groups: ${info}. User Question: ${msg}\n\n${baseInstruction}`;
-    } else if (type === 'scribe' && currentScribeSteps.length > 0) {
-        const steps = currentScribeSteps.map((s, i) => `Step ${i+1}: ${s.action}`).join('\n');
-        ctx = `Context: Recorded workflow:\n${steps}\n\nUser Question: ${msg}\n\n${baseInstruction}`;
+    const baseInstruction = " You are a helpful AI assistant. Provide a concise answer. If the user asks about a report, tabs, or workflow and the context is empty, politely state that you don't have that information yet and suggest they run the corresponding action.";
+    let fullPrompt = '';
+
+    if (type === 'auditor') {
+        ctx = currentAuditReport ? `Context: Audit Report (first 2000 chars):\n${currentAuditReport.substring(0, 2000)}\n\n` : 'Context: No audit has been run yet.\n\n';
+        fullPrompt = `${ctx}User Question: ${msg}\n\n${baseInstruction}`;
+    } else if (type === 'organizer') {
+        const info = currentTabGroups.length > 0 ? currentTabGroups.map(g => `${g.groupName}: ${g.tabIds.length} tabs`).join(', ') : '';
+        ctx = info ? `Context: Tabs were organized into these groups: ${info}.\n\n` : 'Context: No tabs have been organized yet.\n\n';
+        fullPrompt = `${ctx}User Question: ${msg}\n\n${baseInstruction}`;
+    } else if (type === 'scribe') {
+        const steps = currentScribeSteps.length > 0 ? currentScribeSteps.map((s, i) => `Step ${i+1}: ${s.action}`).join('\n') : '';
+        ctx = steps ? `Context: Recorded workflow:\n${steps}\n\n` : 'Context: No workflow has been recorded yet.\n\n';
+        fullPrompt = `${ctx}User Question: ${msg}\n\n${baseInstruction}`;
     } else {
-        ctx = msg; // No context, just ask the question directly
+        fullPrompt = msg; // No context, just ask the question directly
     }
 
 
@@ -1671,7 +2001,7 @@ async function chat(type) {
     let session = null;
     try {
         session = await createSession(); // Uses self.languageModel
-        const res = await session.prompt(ctx);
+        const res = await session.prompt(fullPrompt);
         if(thinkDiv.parentNode === msgs) msgs.removeChild(thinkDiv); // Remove thinking message
         addChatMessage(msgs, res, 'ai');
     } catch (err) {
@@ -1759,6 +2089,11 @@ async function loadAudit(id) {
 
             switchTab('auditor'); // Switch to auditor tab FIRST
 
+            // *** START: DASHBOARD VISIBILITY FIX ***
+            // Force view mode to "split" so user sees the dashboard
+            setViewMode('split');
+            // *** END: DASHBOARD VISIBILITY FIX ***
+
             // Now render content in the auditor's results panel
             if (currentAuditData) {
                 await renderDash(currentAuditData); // Render dashboard
@@ -1774,13 +2109,17 @@ async function loadAudit(id) {
             }
 
             // Ensure AI action buttons are updated for the loaded report
-            // setupAiActionButtons(currentAuditReport, el.results, el.auditStatusText); // This function was removed, aiAction handles it
-            // setupCopyButton(currentAuditReport, el.copyBtn); // This function was removed, copyReport handles it
+            updateElementVisibility('auditor'); // This handles all buttons now
 
-            el.aiPanel.style.display = isAiAvailable ? 'block' : 'none'; // Show AI panel if AI is available
-            el.audChat.style.display = 'block';
-            el.copyBtn.style.display = 'block';
-            el.exportBtn.style.display = 'block';
+            // el.aiPanel.style.display = isAiAvailable ? 'block' : 'none'; // Handled by updateElementVisibility
+            // el.audChat.style.display = 'block'; // Handled by updateElementVisibility
+            // el.copyBtn.style.display = 'block'; // Handled by updateElementVisibility
+
+            // *** START: BUG FIX ***
+            // The line 'el.exportBtn.style.display = 'block';' was causing an error
+            // It has been removed. updateElementVisibility() handles the correct export buttons.
+            // *** END: BUG FIX ***
+
             updateStatus('audit', `Loaded: ${new URL(item.url).hostname}`, 'info');
             showToast('Loaded', 'Report loaded from history!', 'success');
         } else {
@@ -1829,4 +2168,80 @@ async function saveAudit(url, report, data) {
     }
 }
 
-console.log('✅ Spectrum AI Pro Sidepanel Initialized (v3.2 - CSP Fix)');
+// *** START: HISTORY EXPORT/IMPORT FIX ***
+// Added missing functions
+async function exportHistory() {
+    try {
+        const { history = [] } = await chrome.storage.local.get('history');
+        if (history.length === 0) {
+            showToast('No History', 'There is no history to export.', 'warning');
+            return;
+        }
+        const jsonData = JSON.stringify(history, null, 2);
+        downloadFile(jsonData, `spectrum-ai-history-export-${Date.now()}.json`, 'application/json');
+        showToast('Exported', 'History downloaded as JSON!', 'success');
+    } catch (e) {
+        console.error("History export failed:", e);
+        showError("History Export Failed", e.message);
+    }
+}
+function importHistory(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+        try {
+            const importedHistory = JSON.parse(e.target.result);
+            if (!Array.isArray(importedHistory) || (importedHistory.length > 0 && !importedHistory[0].id)) {
+                throw new Error('Invalid history file format.');
+            }
+
+            if (!confirm(`Are you sure you want to import ${importedHistory.length} items? This will merge with your existing history.`)) {
+                return;
+            }
+
+            const { history: existingHistory = [] } = await chrome.storage.local.get('history');
+
+            // Merge and de-duplicate
+            const historyMap = new Map();
+            existingHistory.forEach(item => historyMap.set(item.id, item));
+            importedHistory.forEach(item => historyMap.set(item.id, item));
+
+            const mergedHistory = Array.from(historyMap.values())
+                .sort((a, b) => new Date(b.date) - new Date(a.date)) // Re-sort by date
+                .slice(0, 50); // Enforce 50 item limit
+
+            await chrome.storage.local.set({ history: mergedHistory });
+
+            showToast('Import Complete', `History updated with ${mergedHistory.length} total items.`, 'success');
+            loadHist(); // Refresh the history view
+        } catch (err) {
+            console.error('History import failed:', err);
+            showError('Import Failed', `Could not import history: ${err.message}`);
+        } finally {
+            // Reset file input to allow re-importing same file
+            event.target.value = null;
+        }
+    };
+    reader.readAsText(file);
+}
+// *** END: HISTORY EXPORT/IMPORT FIX ***
+
+// *** NEW: Universal Download Helper ***
+function downloadFile(content, filename, contentType) {
+    try {
+        const a = document.createElement('a');
+        const file = new Blob([content], { type: contentType });
+        a.href = URL.createObjectURL(file);
+        a.download = filename;
+        a.click();
+        URL.revokeObjectURL(a.href);
+    } catch (e) {
+        console.error("Download failed:", e);
+        showToast('Download Failed', e.message, 'error');
+    }
+}
+
+
+console.log('✅ Spectrum AI Pro Sidepanel Initialized (v3.3)');

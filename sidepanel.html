@@ -67,7 +67,7 @@
                             <div id="auditLoader" class="loader" style="display: none;"></div>
                         </div>
 
-                        <div id="auditorChatContainer" class="chat-container" style="display: none;">
+                        <div id="auditorChatContainer" class="chat-container">
                             <div id="auditorChatMessages" class="chat-messages"></div>
                             <div class="chat-input-wrapper">
                                 <input type="text" id="auditorChatInput" class="chat-input" placeholder="Ask about the audit...">
@@ -89,8 +89,8 @@
                                 <button id="summarizeGroupButton" class="ai-action-button" disabled>📄 Create Summary</button>
                                 <button id="extractDataButton" class="ai-action-button" disabled>📊 Extract Key Data</button>
                                 <button id="findContactsButton" class="ai-action-button" disabled>👤 Find Contacts</button>
+                                <button id="analyzeContentButton" class="ai-action-button" disabled>🔬 Analyze Content</button>
                             </div>
-
 
                             <div id="organizerStatus" class="status-message info" style="display: none;">
                                 <span id="organizerStatusText">Ready to organize tabs</span>
@@ -118,8 +118,13 @@
                             </button>
 
                             <div id="scribeActionsPanel" class="ai-actions" style="display: none;">
-                                <button id="generalizeWorkflowButton" class="ai-action-button">🔧 Generalize</Dbutton>
-                                <button id="downloadPdfButton" class="ai-action-button">📥 Export</button>
+                                <h3 class="section-title" style="margin-top: 16px;">AI Tools</h3>
+                                <button id="generalizeWorkflowButton" class="ai-action-button">🔧 Generalize Workflow</button>
+                                <button id="scribeAnalyzeButton" class="ai-action-button">💡 Analyze & Optimize</button>
+                                <h3 class="section-title" style="margin-top: 16px;">Export Options</h3>
+                                <button id="scribeExportTextButton" class="ai-action-button">📥 Export as Text (.txt)</button>
+                                <button id="scribeExportJsonButton" class="ai-action-button">📥 Export as JSON</button>
+                                <button id="scribeExportPdfButton" class="ai-action-button">📥 Export as PDF</button>
                             </div>
 
                             <div id="scribeStatus" class="status-message info" style="display: none;">
@@ -141,7 +146,12 @@
                         <div class="panel-section">
                             <h3 class="section-title">🕒 Audit History</h3>
                             <input type="text" id="historySearchInput" class="search-input" placeholder="Search history...">
-                            <button id="clearHistoryButton" class="secondary-button">🗑️ Clear</button>
+                            <div style="display: flex; gap: 8px;">
+                                <button id="historyExportButton" class="secondary-button" style="width: 50%;">📥 Export</button>
+                                <button id="historyImportButton" class="secondary-button" style="width: 50%;">📤 Import</button>
+                            </div>
+                            <input type="file" id="historyImportInput" accept=".json" style="display: none;">
+                            <button id="clearHistoryButton" class="secondary-button" style="background-color: var(--error-light); border-color: var(--error); color: white; margin-top: 8px;">🗑️ Clear All</button>
                         </div>
                     </div>
                 </div>
@@ -152,7 +162,9 @@
                     <h2 id="resultsTitle" class="results-title">📊 Results & Reports</h2>
                     <div class="results-toolbar" style="display: flex; gap: 8px;">
                         <button id="fullscreenButton" class="icon-button" title="Toggle Fullscreen">🔍</button>
-                        <button id="exportButton" class="icon-button" style="display: none;" title="Export Report">Export</button>
+                        <button id="exportMarkdownButton" class="icon-button" style="display: none;" title="Export as Markdown">.md</button>
+                        <button id="exportJsonButton" class="icon-button" style="display: none;" title="Export as JSON">.json</button>
+                        <button id="exportPdfButton" class="icon-button" style="display: none;" title="Export as PDF">.pdf</button>
                         <button id="copyReportButton" class="icon-button" style="display: none;" title="Copy Report">
                             📋 Copy
                         </button>
@@ -176,6 +188,7 @@
         </div>
     </div>
 
+    <script src="jspdf.umd.min.js"></script>
     <script src="sidepanel.js"></script>
 </body>
 </html>

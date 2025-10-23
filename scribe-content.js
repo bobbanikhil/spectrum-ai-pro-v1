@@ -1,7 +1,7 @@
 /**
- * CONTENT SCRIPT - SPECTRUM AI PRO V3.1
+ * CONTENT SCRIPT - SPECTRUM AI PRO V3.3
  * Injected onto the page to capture user interactions for Scribe.
- * Handles potential runtime invalidation errors.
+ * Handles potential runtime invalidation errors more gracefully.
  */
 
 'use strict';
@@ -13,8 +13,8 @@ if (window.spectrumAIContentScriptActive) {
     window.spectrumAIContentScriptActive = true;
     console.log('🚀 Spectrum AI Scribe: Content script injected.');
 
-    // Add a click listener to the entire document
-    document.body.addEventListener('click', (e) => {
+    // Define the click handler function
+    const handleScribeClick = (e) => {
         // Find the most specific element clicked
         let target = e.target;
 
@@ -40,25 +40,32 @@ if (window.spectrumAIContentScriptActive) {
                 });
             } else {
                  console.warn("Spectrum AI: Runtime context invalidated. Cannot send click event.");
+                 // *** START: CONTEXT INVALIDATED FIX ***
+                 // If runtime is invalid, remove this listener to stop errors
+                 document.body.removeEventListener('click', handleScribeClick, true);
+                 window.spectrumAIContentScriptActive = false;
+                 // *** END: CONTEXT INVALIDATED FIX ***
             }
         } catch (e) {
              // Catch errors specifically related to the connection being closed
              if (e.message.includes("Extension context invalidated") || e.message.includes("Receiving end does not exist")) {
                  console.warn("Spectrum AI: Could not process click event - ", e.message);
-                 // Optionally, could try to re-establish connection or disable listener,
-                 // but often the script needs to be re-injected anyway.
-                 // For now, just log the warning.
+                 // *** START: CONTEXT INVALIDATED FIX ***
+                 // Remove listener to prevent further errors from this "zombie" script
+                 document.body.removeEventListener('click', handleScribeClick, true);
                  window.spectrumAIContentScriptActive = false; // Mark as inactive
+                 // *** END: CONTEXT INVALIDATED FIX ***
              } else {
                  console.error('Spectrum AI: Unexpected error sending click event:', e);
              }
         }
 
-
         // Add a visual indicator for the click
         addClickIndicator(e.clientX, e.clientY);
+    };
 
-    }, true); // Use capture phase to get all clicks
+    // Add the click listener to the entire document
+    document.body.addEventListener('click', handleScribeClick, true); // Use capture phase
 
     function addClickIndicator(x, y) {
         try {
