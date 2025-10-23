@@ -1,21 +1,20 @@
 {
   "manifest_version": 3,
   "name": "Spectrum AI Pro Enhanced",
-  "version": "2.0",
+  "version": "3.1",
   "description": "Advanced AI-powered web analysis, intelligent tab organization, and workflow documentation with enhanced UI/UX and contextual features.",
   "permissions": [
-    "sidePanel",
+ "sidePanel",
     "contextMenus",
     "scripting",
     "activeTab",
     "storage",
     "tabs",
     "tabGroups",
-    "pageCapture",
     "languageModel",
-    "alarms",
+    "tts",
     "notifications",
-    "action"
+    "downloads"
   ],
   "host_permissions": [
     "<all_urls>"
@@ -37,8 +36,14 @@
   },
   "web_accessible_resources": [
     {
-      "resources": ["scribe.css", "sidepanel.css"],
-      "matches": ["<all_urls>"]
+      "resources": [
+        "scribe.css",
+        "sidepanel.css",
+        "scribe-content.js"
+      ],
+      "matches": [
+        "<all_urls>"
+      ]
     }
   ],
   "options_page": "setup.html",
@@ -66,6 +71,6 @@
     }
   },
   "content_security_policy": {
-    "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self'"
+    "extension_pages": "script-src 'self'; object-src 'self'"
   }
 }

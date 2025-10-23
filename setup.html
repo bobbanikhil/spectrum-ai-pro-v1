@@ -155,6 +155,12 @@
             color: white;
         }
 
+        .requirement-icon.checking {
+            background: #3b82f6;
+            color: white;
+            animation: spin 1s linear infinite;
+        }
+
         .requirement-text {
             flex: 1;
             font-size: 14px;
@@ -196,6 +202,13 @@
         .btn-primary:hover {
             transform: translateY(-2px);
             box-shadow: 0 8px 20px rgba(59, 130, 246, 0.3);
+        }
+
+        .btn-primary:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
         }
 
         .btn-secondary {
@@ -240,6 +253,10 @@
             text-align: center;
             font-size: 12px;
             color: #6b7280;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
         }
 
         @media (max-width: 640px) {
@@ -302,14 +319,14 @@
                         <span class="requirement-icon check">✓</span>
                         <div>
                             <div class="requirement-text">Google Chrome Browser</div>
-                            <div class="requirement-desc">Latest version recommended for best performance</div>
+                            <div class="requirement-desc">Latest version (127+) recommended</div>
                         </div>
                     </li>
                     <li>
                         <span class="requirement-icon warning" id="aiStatusIcon">!</span>
                         <div>
                             <div class="requirement-text">AI Features Enabled</div>
-                            <div class="requirement-desc">Required for analysis and contextual actions</div>
+                            <div class="requirement-desc" id="aiStatusDesc">Required for analysis and contextual actions</div>
                         </div>
                     </li>
                     <li>
@@ -317,13 +334,6 @@
                         <div>
                             <div class="requirement-text">Extension Permissions</div>
                             <div class="requirement-desc">Active tab, storage, and scripting permissions</div>
-                        </div>
-                    </li>
-                    <li>
-                        <span class="requirement-icon check">✓</span>
-                        <div>
-                            <div class="requirement-text">Sufficient System Resources</div>
-                            <div class="requirement-desc">4GB+ RAM recommended for AI processing</div>
                         </div>
                     </li>
                 </ul>
@@ -337,7 +347,6 @@
                     <li><strong>Open Side Panel:</strong> Click the extension icon or use Ctrl+Shift+A to open the main interface</li>
                     <li><strong>Run Your First Audit:</strong> Navigate to any website and click "🚀 Run 12-Point Audit"</li>
                     <li><strong>Explore Features:</strong> Try tab organization, workflow recording, and history management</li>
-                    <li><strong>Customize Settings:</strong> Adjust preferences in the settings panel for optimal experience</li>
                 </ol>
             </div>
 
@@ -355,66 +364,10 @@
 
         <div class="footer">
             <p>Spectrum AI Pro - Professional AI-Powered Web Analysis</p>
-            <p>Version 2.0 | Built with modern web technologies and AI</p>
+            <p>Version 3.0 | Built with on-device AI</p>
         </div>
     </div>
 
-    <script>
-        // Check AI availability
-        async function checkAIAvailability() {
-            const statusIcon = document.getElementById('aiStatusIcon');
-            const enableBtn = document.getElementById('enableAIBtn');
-
-            try {
-                statusIcon.className = 'requirement-icon checking';
-                statusIcon.textContent = '⏳';
-
-                // Try to access AI APIs
-                if (typeof chrome !== 'undefined' && chrome.runtime) {
-                    const response = await chrome.runtime.sendMessage({ action: 'checkAI' });
-
-                    if (response && response.available) {
-                        statusIcon.className = 'requirement-icon check';
-                        statusIcon.textContent = '✓';
-                        enableBtn.textContent = 'AI Features Ready';
-                        enableBtn.disabled = true;
-                    } else {
-                        statusIcon.className = 'requirement-icon warning';
-                        statusIcon.textContent = '!';
-                        enableBtn.textContent = 'Enable AI Features';
-                    }
-                } else {
-                    throw new Error('Extension not available');
-                }
-            } catch (error) {
-                statusIcon.className = 'requirement-icon warning';
-                statusIcon.textContent = '!';
-                enableBtn.textContent = 'Enable AI Features';
-                console.error('AI check failed:', error);
-            }
-        }
-
-        // Enable AI features
-        document.getElementById('enableAIBtn').addEventListener('click', () => {
-            // Open Chrome flags page
-            chrome.tabs.create({
-                url: 'chrome://flags/#optimization-guide-on-device-model'
-            });
-        });
-
-        // Open side panel
-        document.getElementById('openSidePanelBtn').addEventListener('click', () => {
-            chrome.sidePanel.open({ windowId: chrome.windows.WINDOW_ID_CURRENT });
-            window.close();
-        });
-
-        // Initialize
-        document.addEventListener('DOMContentLoaded', () => {
-            checkAIAvailability();
-
-            // Auto-check AI status every 2 seconds
-            setInterval(checkAIAvailability, 2000);
-        });
-    </script>
+    <script src="setup.js"></script>
 </body>
 </html>

@@ -8,17 +8,16 @@
 </head>
 <body>
     <div class="app-container">
-        <!-- Header -->
         <header class="app-header">
             <div class="header-content">
                 <div class="logo-section">
                     <span class="logo-icon">✨</span>
                     <h1 class="app-title">Spectrum AI Pro</h1>
                 </div>
+                <button id="settingsBtn" class="icon-button" title="Settings">⚙️</button>
             </div>
         </header>
 
-        <!-- View Mode Controls -->
         <div class="view-controls">
             <button class="view-mode-btn active" data-mode="split" aria-label="Split View">
                 📊 Split View
@@ -31,11 +30,8 @@
             </button>
         </div>
 
-        <!-- Main Content Wrapper -->
         <div class="content-wrapper split-view">
-            <!-- Left Panel: Controls -->
             <aside class="control-panel">
-                <!-- Tab Navigation -->
                 <nav class="tab-navigation" role="tablist">
                     <button class="tab-link active" data-tab="auditor" role="tab" aria-selected="true">
                         🎯 Auditor
@@ -51,9 +47,7 @@
                     </button>
                 </nav>
 
-                <!-- Tab Content Panels -->
                 <div class="tab-panels">
-                    <!-- AUDITOR TAB -->
                     <div id="auditor" class="tab-content active" role="tabpanel">
                         <div class="panel-section">
                             <h3 class="section-title">💬 AI Assistant</h3>
@@ -73,7 +67,6 @@
                             <div id="auditLoader" class="loader" style="display: none;"></div>
                         </div>
 
-                        <!-- Auditor Chat -->
                         <div id="auditorChatContainer" class="chat-container" style="display: none;">
                             <div id="auditorChatMessages" class="chat-messages"></div>
                             <div class="chat-input-wrapper">
@@ -83,7 +76,6 @@
                         </div>
                     </div>
 
-                    <!-- ORGANIZER TAB -->
                     <div id="organizer" class="tab-content" role="tabpanel" hidden>
                         <div class="panel-section">
                             <h3 class="section-title">📂 Tab Organizer</h3>
@@ -91,13 +83,21 @@
                                 📂 Analyze & Group Tabs
                             </button>
 
+                            <div id="organizerActionsPanel" class="ai-actions" style="display: none;">
+                                <h3 class="section-title" style="margin-top: 16px;">Contextual AI Actions</h3>
+                                <p id="organizerActionContext" style="font-size: 12px; color: var(--text-secondary); margin-bottom: 12px;">Select a group to enable actions.</p>
+                                <button id="summarizeGroupButton" class="ai-action-button" disabled>📄 Create Summary</button>
+                                <button id="extractDataButton" class="ai-action-button" disabled>📊 Extract Key Data</button>
+                                <button id="findContactsButton" class="ai-action-button" disabled>👤 Find Contacts</button>
+                            </div>
+
+
                             <div id="organizerStatus" class="status-message info" style="display: none;">
                                 <span id="organizerStatusText">Ready to organize tabs</span>
                             </div>
                             <div id="organizerLoader" class="loader" style="display: none;"></div>
                         </div>
 
-                        <!-- Organizer Chat -->
                         <div id="organizerChatContainer" class="chat-container" style="display: none;">
                             <div id="organizerChatMessages" class="chat-messages"></div>
                             <div class="chat-input-wrapper">
@@ -107,20 +107,19 @@
                         </div>
                     </div>
 
-                    <!-- SCRIBE TAB -->
                     <div id="scribe" class="tab-content" role="tabpanel" hidden>
                         <div class="panel-section">
                             <h3 class="section-title">📝 Workflow Scribe</h3>
                             <button id="startScribeButton" class="primary-button">
                                 🎬 Start Recording
                             </button>
-                            <button id="stopScribeButton" class="secondary-button" style="display: none;">
+                            <button id="stopScribeButton" class="secondary-button" style="display: none; background-color: var(--error); color: white; border-color: var(--error-light);">
                                 ⏹️ Stop & Generate
                             </button>
 
                             <div id="scribeActionsPanel" class="ai-actions" style="display: none;">
-                                <button id="generalizeWorkflowButton" class="ai-action-button">🔧 Generalize</button>
-                                <button id="downloadPdfButton" class="ai-action-button">📥 PDF</button>
+                                <button id="generalizeWorkflowButton" class="ai-action-button">🔧 Generalize</Dbutton>
+                                <button id="downloadPdfButton" class="ai-action-button">📥 Export</button>
                             </div>
 
                             <div id="scribeStatus" class="status-message info" style="display: none;">
@@ -129,7 +128,6 @@
                             <div id="scribeLoader" class="loader" style="display: none;"></div>
                         </div>
 
-                        <!-- Scribe Chat -->
                         <div id="scribeChatContainer" class="chat-container" style="display: none;">
                             <div id="scribeChatMessages" class="chat-messages"></div>
                             <div class="chat-input-wrapper">
@@ -139,7 +137,6 @@
                         </div>
                     </div>
 
-                    <!-- HISTORY TAB -->
                     <div id="history" class="tab-content" role="tabpanel" hidden>
                         <div class="panel-section">
                             <h3 class="section-title">🕒 Audit History</h3>
@@ -150,13 +147,16 @@
                 </div>
             </aside>
 
-            <!-- Right Panel: Results -->
             <main class="results-panel">
                 <div class="results-header">
-                    <h2 class="results-title">📊 Results & Reports</h2>
-                    <button id="copyReportButton" class="icon-button" style="display: none;" title="Copy Report">
-                        📋 Copy
-                    </button>
+                    <h2 id="resultsTitle" class="results-title">📊 Results & Reports</h2>
+                    <div class="results-toolbar" style="display: flex; gap: 8px;">
+                        <button id="fullscreenButton" class="icon-button" title="Toggle Fullscreen">🔍</button>
+                        <button id="exportButton" class="icon-button" style="display: none;" title="Export Report">Export</button>
+                        <button id="copyReportButton" class="icon-button" style="display: none;" title="Copy Report">
+                            📋 Copy
+                        </button>
+                    </div>
                 </div>
 
                 <div id="results" class="results-content">

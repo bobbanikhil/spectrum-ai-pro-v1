@@ -183,7 +183,7 @@
         </div>
 
         <div class="keyboard-hint">
-            Ctrl+Shift+A: Run Audit | Ctrl+Shift+S: Start Scribe | Ctrl+Shift+O: Organize Tabs
+            Ctrl+Shift+A: Run Audit | Ctrl+Shift+S: Start Scribe
         </div>
     </div>
 
@@ -191,24 +191,6 @@
         Professional AI Analysis & Workflow Automation
     </div>
 
-    <script>
-        document.getElementById('openSidePanel').addEventListener('click', () => {
-            chrome.sidePanel.open({ windowId: chrome.windows.WINDOW_ID_CURRENT });
-        });
-
-        document.getElementById('runQuickAudit').addEventListener('click', () => {
-            chrome.runtime.sendMessage({ action: 'runQuickAudit' });
-            window.close();
-        });
-
-        // Auto-close after 5 seconds if no interaction
-        let autoCloseTimer = setTimeout(() => {
-            window.close();
-        }, 5000);
-
-        document.addEventListener('click', () => {
-            clearTimeout(autoCloseTimer);
-        });
-    </script>
+    <script src="popup.js"></script>
 </body>
 </html>
