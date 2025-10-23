@@ -9,6 +9,9 @@
 'use strict';
 
 // GLOBAL STATE
+const state = {
+    isAiAvailable: null
+};
 let currentAuditReport = '';
 let currentAuditUrl = '';
 let currentAuditData = null; // Includes scores, issues, report text etc.
@@ -19,12 +22,12 @@ let selectedOrganizerGroup = {
     groupName: null,
     buttonElement: null
 };
-let isAiAvailable = null; // Track AI availability state
 
 // Cache all DOM elements
 const el = {};
 
 function cacheElements() {
+    console.log("cacheElements() called.");
     // View Modes
     el.viewBtns = document.querySelectorAll('.view-mode-btn');
     el.wrapper = document.querySelector('.content-wrapper');
@@ -58,6 +61,8 @@ function cacheElements() {
     el.audMsgs = document.getElementById('auditorChatMessages');
     el.audInput = document.getElementById('auditorChatInput');
     el.audSend = document.getElementById('auditorChatSend');
+    el.auditResultsContainer = document.getElementById('auditResultsContainer');
+    el.auditResultsContent = document.getElementById('auditResultsContent');
 
     // Organizer
     el.orgBtn = document.getElementById('organizeTabsButton');
@@ -146,9 +151,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     showLoadingAnimation();
 
-    isAiAvailable = await checkAI();
+    state.isAiAvailable = await checkAI();
 
-    if (!isAiAvailable) {
+    if (!state.isAiAvailable) {
          showError(
             "AI UNAVAILABLE: SETUP REQUIRED",
             "Could not initialize AI features (`self.LanguageModel` not found or not ready).\n\n" +
@@ -291,6 +296,21 @@ function setupEventListeners() {
     el.exportPdfBtn?.addEventListener('click', exportAuditPdf);
     el.fullscreenBtn?.addEventListener('click', toggleFullscreen);
     el.settingsBtn?.addEventListener('click', () => chrome.runtime.openOptionsPage());
+
+    // Event listener for View Details buttons (event delegation)
+    el.results?.addEventListener('click', (e) => {
+        if (e.target && e.target.classList.contains('view-details-btn')) {
+            e.preventDefault();
+            const targetId = e.target.dataset.targetId;
+            const fullReportDiv = document.getElementById('fullReport');
+            if (fullReportDiv && targetId) {
+                const targetElement = fullReportDiv.querySelector(`#${targetId}`);
+                if (targetElement) {
+                    fullReportDiv.scrollTop = targetElement.offsetTop - fullReportDiv.offsetTop;
+                }
+            }
+        }
+    });
 }
 
 // --- Message Listeners ---
@@ -385,58 +405,78 @@ function switchTab(name) {
     if (name === 'history') loadHist();
 }
 function updateElementVisibility(activeTabName) {
-    // Chat Visibility
-    if (el.audChat) el.audChat.style.display = (activeTabName === 'auditor') ? 'block' : 'none';
-    if (el.orgChat) el.orgChat.style.display = (activeTabName === 'organizer') ? 'block' : 'none';
-    if (el.scribeChat) el.scribeChat.style.display = (activeTabName === 'scribe') ? 'block' : 'none';
+    const visibility = {
+        auditor: activeTabName === 'auditor',
+        organizer: activeTabName === 'organizer',
+        scribe: activeTabName === 'scribe',
+        history: activeTabName === 'history',
+    };
 
-    const showAuditElements = activeTabName === 'auditor' && currentAuditReport && currentAuditData;
-    const showScribeElements = activeTabName === 'scribe' && currentScribeSteps.length > 0;
-    const showOrgElements = activeTabName === 'organizer' && currentTabGroups.length > 0;
-    const showOrgActions = showOrgElements && selectedOrganizerGroup.tabIds.length > 0;
-    const showHistoryElements = activeTabName === 'history';
+    // Toggle chat visibility
+    if (el.audChat) el.audChat.style.display = visibility.auditor ? 'block' : 'none';
+    if (el.orgChat) el.orgChat.style.display = visibility.organizer ? 'block' : 'none';
+    if (el.scribeChat) el.scribeChat.style.display = visibility.scribe ? 'block' : 'none';
+
+    updateAuditorElementsVisibility(visibility.auditor);
+    updateScribeElementsVisibility(visibility.scribe);
+    updateOrganizerElementsVisibility(visibility.organizer);
+    updateHistoryElementsVisibility(visibility.history);
+    updateChatInputsVisibility();
+}
+
+function updateAuditorElementsVisibility(isVisible) {
+    const showAuditElements = isVisible && currentAuditReport && currentAuditData;
     const pdfLibraryExists = typeof jsPDF !== 'undefined';
 
-    // Auditor specific
-    if (el.aiPanel) el.aiPanel.style.display = showAuditElements && isAiAvailable ? 'block' : 'none';
+    if (el.aiPanel) el.aiPanel.style.display = showAuditElements && state.isAiAvailable ? 'block' : 'none';
     if (el.copyBtn) el.copyBtn.style.display = showAuditElements ? 'block' : 'none';
     if (el.exportMarkdownBtn) el.exportMarkdownBtn.style.display = showAuditElements ? 'block' : 'none';
     if (el.exportJsonBtn) el.exportJsonBtn.style.display = showAuditElements ? 'block' : 'none';
     if (el.exportPdfBtn) {
-         el.exportPdfBtn.style.display = showAuditElements ? 'block' : 'none';
-         el.exportPdfBtn.disabled = !pdfLibraryExists;
+        el.exportPdfBtn.style.display = showAuditElements ? 'block' : 'none';
+        el.exportPdfBtn.disabled = !pdfLibraryExists;
     }
+}
 
-    // Scribe specific
+function updateScribeElementsVisibility(isVisible) {
+    const showScribeElements = isVisible && currentScribeSteps.length > 0;
+    const pdfLibraryExists = typeof jsPDF !== 'undefined';
+
     if (el.scribePanel) el.scribePanel.style.display = showScribeElements ? 'block' : 'none';
     if (el.scribePanel && el.scribePanel.style.display === 'block') {
-        if (el.genBtn) el.genBtn.disabled = !isAiAvailable;
-        if (el.scribeAnalyzeBtn) el.scribeAnalyzeBtn.disabled = !isAiAvailable;
+        if (el.genBtn) el.genBtn.disabled = !state.isAiAvailable;
+        if (el.scribeAnalyzeBtn) el.scribeAnalyzeBtn.disabled = !state.isAiAvailable;
         if (el.scribeExportPdfBtn) el.scribeExportPdfBtn.disabled = !pdfLibraryExists;
-         if (el.scribeExportTextBtn) el.scribeExportTextBtn.disabled = false;
-         if (el.scribeExportJsonBtn) el.scribeExportJsonBtn.disabled = false;
+        if (el.scribeExportTextBtn) el.scribeExportTextBtn.disabled = false;
+        if (el.scribeExportJsonBtn) el.scribeExportJsonBtn.disabled = false;
     }
+}
 
-    // Organizer specific
+function updateOrganizerElementsVisibility(isVisible) {
+    const showOrgElements = isVisible && currentTabGroups.length > 0;
+    const showOrgActions = showOrgElements && selectedOrganizerGroup.tabIds.length > 0;
+
     if (el.orgActionsPanel) el.orgActionsPanel.style.display = showOrgActions ? 'block' : 'none';
     if (el.orgActionsPanel && el.orgActionsPanel.style.display === 'block') {
-         if(el.summGroupBtn) el.summGroupBtn.disabled = !isAiAvailable;
-         if(el.extractDataBtn) el.extractDataBtn.disabled = !isAiAvailable;
-         if(el.findContactsBtn) el.findContactsBtn.disabled = !isAiAvailable;
-         if(el.analyzeContentBtn) el.analyzeContentBtn.disabled = !isAiAvailable;
+                 if(el.summGroupBtn) el.summGroupBtn.disabled = !state.isAiAvailable;
+                 if(el.extractDataBtn) el.extractDataBtn.disabled = !state.isAiAvailable;
+                 if(el.findContactsBtn) el.findContactsBtn.disabled = !state.isAiAvailable;
+                 if(el.analyzeContentBtn) el.analyzeContentBtn.disabled = !state.isAiAvailable;
     }
+}
 
-     // History specific buttons
-     if (el.histExportBtn) el.histExportBtn.style.display = showHistoryElements ? 'inline-block' : 'none';
-     if (el.histImportBtn) el.histImportBtn.style.display = showHistoryElements ? 'inline-block' : 'none';
-     if (el.histImportInput) el.histImportInput.style.display = 'none';
+function updateHistoryElementsVisibility(isVisible) {
+    if (el.histExportBtn) el.histExportBtn.style.display = isVisible ? 'inline-block' : 'none';
+    if (el.histImportBtn) el.histImportBtn.style.display = isVisible ? 'inline-block' : 'none';
+    if (el.histImportInput) el.histImportInput.style.display = 'none';
+}
 
-    // Chat Inputs based on AI status
-    const chatInputDisabled = !isAiAvailable;
+function updateChatInputsVisibility() {
+    const chatInputDisabled = !state.isAiAvailable;
     [el.audInput, el.orgInput, el.scribeInput].forEach(inp => { if(inp) inp.disabled = chatInputDisabled; });
     [el.audSend, el.orgSend, el.scribeSend].forEach(btn => { if(btn) btn.disabled = chatInputDisabled; });
-    // Show unavailable message if AI is off and chat is visible
-    if(!isAiAvailable) {
+
+    if(!state.isAiAvailable) {
         if(el.audChat?.style.display === 'block' && el.audMsgs && !el.audMsgs.hasChildNodes()) addChatMessage(el.audMsgs, 'AI chat unavailable.', 'error');
         if(el.orgChat?.style.display === 'block' && el.orgMsgs && !el.orgMsgs.hasChildNodes()) addChatMessage(el.orgMsgs, 'AI chat unavailable.', 'error');
         if(el.scribeChat?.style.display === 'block' && el.scribeMsgs && !el.scribeMsgs.hasChildNodes()) addChatMessage(el.scribeMsgs, 'AI chat unavailable.', 'error');
@@ -459,22 +499,22 @@ async function checkAI() {
     } catch (e) { console.error("[checkAI] Error during availability/create check:", e); return false; }
 }
 async function createSession() {
-    if (isAiAvailable !== true) {
+    if (state.isAiAvailable !== true) {
          console.warn("[createSession] AI state is not true. Re-checking...");
-         if (!await checkAI()) { isAiAvailable = false; throw new Error("AI Language Model is not available after re-check."); }
-         isAiAvailable = true; console.log("[createSession] AI availability confirmed on re-check.");
+         if (!await checkAI()) { state.isAiAvailable = false; throw new Error("AI Language Model is not available after re-check."); }
+         state.isAiAvailable = true; console.log("[createSession] AI availability confirmed on re-check.");
     }
     try {
         const modelObject = self.LanguageModel;
         if (typeof modelObject?.create !== 'function') {
-             isAiAvailable = false; console.error("[createSession] FINAL CHECK FAILED: self.LanguageModel.create is not a function.");
+             state.isAiAvailable = false; console.error("[createSession] FINAL CHECK FAILED: self.LanguageModel.create is not a function.");
              throw new Error("AI Language Model API structure invalid.");
         }
         const session = await modelObject.create({ systemPrompt: 'You are Spectrum AI Pro, a helpful web analyst assistant.', outputLanguage: 'en' });
         console.log("[createSession] Session created successfully.");
         return session;
     } catch (e) {
-        isAiAvailable = false; console.error("[createSession] Failed to create AI session:", e);
+        state.isAiAvailable = false; console.error("[createSession] Failed to create AI session:", e);
         showError("AI Session Error", `Could not create AI session: ${e.message}. Check flags/components.`);
         throw e;
     }
@@ -482,10 +522,15 @@ async function createSession() {
 
 // --- Auditor ---
 async function runAudit() {
-    isAiAvailable = await checkAI();
-    if (!isAiAvailable) { showError("AI Unavailable", "Cannot run audit. Enable AI features."); return; }
+    state.isAiAvailable = await checkAI();
+    if (!state.isAiAvailable) { showError("AI Unavailable", "Cannot run audit. Enable AI features."); return; }
+    // Show audit results container and hide AI actions panel
+    if (el.auditResultsContainer) el.auditResultsContainer.style.display = 'block';
+    if (el.aiPanel) el.aiPanel.style.display = 'none';
+
     if (el.auditBtn) el.auditBtn.disabled = true; loader('audit', true); updateStatus('audit', 'Fetching content...', 'info');
     if (el.results) el.results.innerHTML = ''; if (el.audMsgs) el.audMsgs.innerHTML = '';
+    if (el.auditResultsContent) el.auditResultsContent.innerHTML = '<div class="placeholder"><div class="loader"></div><h2>Analyzing...</h2><p>Please wait while Spectrum AI Pro performs its 12-point audit.</p></div>';
     currentAuditReport = ''; currentAuditData = null; currentAuditUrl = '';
     try {
         const { content, url } = await getPage(); currentAuditUrl = url;
@@ -495,6 +540,7 @@ async function runAudit() {
         currentAuditReport = data.report; currentAuditData = data;
         setViewMode('split'); // Ensure dashboard visible
         await renderDash(data);
+        if (el.auditResultsContent) el.auditResultsContent.innerHTML = renderMarkdown(currentAuditReport);
         updateElementVisibility('auditor');
         updateStatus('audit', '✅ Complete!', 'success'); showToast('Audit Complete', 'Analysis finished!', 'success');
         await saveAudit(url, data.report, data);
@@ -520,10 +566,10 @@ async function analyze(content) {
         if (session) { try { await session.destroy(); } catch (e) {} session = null; } // Destroy JSON session
         session = await createSession(); // New session for report
         const scores = data.scores || fallback().scores;
-        const reportPrompt = `Web analyst: Conduct 12-point audit on content snippet. Use pre-calculated scores. Format in Markdown: # Report, ## Summary, ## Point [Score/10], ### Assessment, ### Issues (\n- Issue), ### Recommendations (\n- Rec). Be concise. Content: ${content.substring(0, 8000)} Scores: Tech:${scores.tech}, A11y:${scores.a11y}, Perf:${scores.perf}, Sec:${scores.sec}, UX:${scores.ux}, Content:${scores.content}, SEO:${scores.seo}, Links:${scores.links}, Conv:${scores.conv}, Analytics:${scores.analytics}, Comp:${scores.comp}, Mobile:${scores.mobile}.`;
+        const reportPrompt = `Web analyst: Conduct 12-point audit on content snippet. Use pre-calculated scores. Format in Markdown: # Report, ## Executive Summary, ## Summary, ## Point [Score/10], ### Assessment, ### Issues (\n- Issue), ### Recommendations (\n- Rec). Be concise. Content: ${content.substring(0, 8000)} Scores: Tech:${scores.tech}, A11y:${scores.a11y}, Perf:${scores.perf}, Sec:${scores.sec}, UX:${scores.ux}, Content:${scores.content}, SEO:${scores.seo}, Links:${scores.links}, Conv:${scores.conv}, Analytics:${scores.analytics}, Comp:${scores.comp}, Mobile:${scores.mobile}.`;
          try {
             const reportText = await session.prompt(reportPrompt);
-            if (!reportText || !reportText.includes("Executive Summary")) throw new Error("Report incomplete.");
+            if (!reportText || !reportText.includes("## Summary")) throw new Error("Report incomplete.");
              data.report = reportText;
          } catch (e) { console.error('[analyze] AI report gen failed, using fallback/error.', e); data.report = (data.report || fallback().report) + `\n\nError Report: ${e.message}`; }
          return data;
@@ -548,12 +594,27 @@ function lvl(s){if(s>=90)return'Excellent';if(s>=70)return'Good';if(s>=50)return
 function grade(s){if(s>=90)return'badge-excellent';if(s>=70)return'badge-good';if(s>=50)return'badge-fair';return'badge-poor';}
 function hlth(s){if(s>=90)return'badge-excellent';if(s>=70)return'badge-good';if(s>=50)return'badge-fair';return'badge-poor';}
 function scColor(s){if(s>=90)return'var(--success)';if(s>=70)return'var(--accent)';if(s>=50)return'var(--warning)';return'var(--error)';}
-function renderMarkdown(md){if(!md)return'';let html=esc(md);return html.replace(/`([^`]+)`/g,'<code>$1</code>').replace(/^### (.*$)/gim,'<h3>$1</h3>').replace(/^## (.*$)/gim,'<h2>$1</h2>').replace(/^# (.*$)/gim,'<h1>$1</h1>').replace(/^- (.*$)/gim,'<li>$1</li>').replace(/<\/li>\s*<li/g,'</li><li').replace(/(<li.*<\/li>)/gs,'<ul>$1</ul>').replace(/<\/ul>\s*<ul>/g,'').replace(/\n/g,'<br>');}
+function getConfidenceClass(c){if(c>=80)return'high';if(c>=50)return'medium';return'low';}
+function renderMarkdown(md) {
+    if (!md) return '';
+    console.log("renderMarkdown called. Type of window.marked:", typeof window.marked);
+    if (typeof window.marked === 'undefined' || window.marked === null) {
+        console.error("window.marked is undefined or null in renderMarkdown!");
+        return "Error: Markdown renderer not available.";
+    }
+    // Configure marked to handle line breaks properly
+    window.marked.setOptions({
+        breaks: true,
+        gfm: true,
+        silent: true
+    });
+    return window.marked.parse(md);
+}
 
 // --- Auditor AI Actions ---
-async function summarize() { if (!isAiAvailable || !currentAuditReport) return; const prompt = `Summarize audit in 3-5 bullets:\n\n${currentAuditReport.substring(0, 4000)}`; await aiAction(prompt, 'Summarizing', 'auditor'); }
-async function proofread() { if (!isAiAvailable || !currentAuditReport) return; const prompt = `Find errors in 'Content' section:\n\n${currentAuditReport.substring(0, 4000)}`; await aiAction(prompt, 'Proofreading', 'auditor'); }
-async function rewriteTitle() { if (!isAiAvailable || !currentAuditReport) return; const prompt = `Suggest 3-5 SEO titles based on 'Content'/'SEO':\n\n${currentAuditReport.substring(0, 4000)}`; await aiAction(prompt, 'Generating Titles', 'auditor'); }
+async function summarize() { if (!state.isAiAvailable || !currentAuditReport) return; const prompt = `Summarize audit in 3-5 bullets:\n\n${currentAuditReport.substring(0, 4000)}`; await aiAction(prompt, 'Summarizing', 'auditor'); }
+async function proofread() { if (!state.isAiAvailable || !currentAuditReport) return; const prompt = `Find errors in 'Content' section:\n\n${currentAuditReport.substring(0, 4000)}`; await aiAction(prompt, 'Proofreading', 'auditor'); }
+async function rewriteTitle() { if (!state.isAiAvailable || !currentAuditReport) return; const prompt = `Suggest 3-5 SEO titles based on 'Content'/'SEO':\n\n${currentAuditReport.substring(0, 4000)}`; await aiAction(prompt, 'Generating Titles', 'auditor'); }
 async function aiAction(prompt, msg, type) {
     loader(type, true); updateStatus(type, msg + '...', 'info'); let session = null;
     try {
@@ -573,7 +634,7 @@ async function aiAction(prompt, msg, type) {
 
 // --- Organizer ---
 async function organize() {
-    isAiAvailable = await checkAI(); if (!isAiAvailable) { showError("AI Unavailable", "Cannot organize tabs."); return; }
+    state.isAiAvailable = await checkAI(); if (!state.isAiAvailable) { showError("AI Unavailable", "Cannot organize tabs."); return; }
     if(el.orgBtn) el.orgBtn.disabled = true; loader('organizer', true); updateStatus('organizer', 'Analyzing tabs...', 'info');
     if(el.results) el.results.innerHTML = ''; if(el.orgMsgs) el.orgMsgs.innerHTML = '';
     currentTabGroups = []; selectedOrganizerGroup = { tabIds: [], groupName: null, buttonElement: null }; disableOrganizerActions();
@@ -604,7 +665,7 @@ async function showGroups(groups, tabs) {
     let html = '<div class="organizer-groups-container">';
     groups.forEach((g, i) => {
         const validTabIds = g.tabIds.filter(id => tabs.some(t => t.id === id)); if (validTabIds.length === 0) { console.warn(`Group "${g.groupName}" empty.`); return; }
-        const confHtml = typeof g.confidence==='number'?`<span class="confidence-score">${g.confidence}%</span>`:'';
+        const confHtml = typeof g.confidence==='number'?`<span class="confidence-score confidence-${getConfidenceClass(g.confidence)}" title="Confidence: ${g.confidence}%">${g.confidence}%</span>`:'';
         html += `<div class="organizer-group" data-group-name="${esc(g.groupName)}" data-tab-ids='${JSON.stringify(validTabIds)}'> <div class="organizer-group-header"><h3><span>📁</span> ${esc(g.groupName)} ${confHtml}</h3><span>${validTabIds.length} tabs</span></div> <ul>`;
         validTabIds.forEach(id => { const t = tabs.find(x => x.id === id); if(t) html += `<li><img src="${t.favIconUrl||'icons/icon16.png'}" width="16" alt=""><span>${esc(t.title)}</span></li>`; });
         html += `</ul><button class="primary-button create-grp">✨ Create Group</button></div>`;
@@ -635,7 +696,7 @@ async function createGroup(tabIds, groupName = "New Group") {
 }
 function disableOrganizerActions() { selectedOrganizerGroup = { tabIds: [], groupName: null, buttonElement: null }; if (el.orgActionsPanel) el.orgActionsPanel.style.display = 'none'; if (el.orgActionContext) el.orgActionContext.textContent = 'Select group.'; }
 async function runOrganizerAction(actionType) {
-    if (!isAiAvailable) { showError("AI Unavailable", "Cannot run action."); return; } if (selectedOrganizerGroup.tabIds.length === 0) { showToast('No Group', 'Select group first.', 'warning'); return; }
+    if (!state.isAiAvailable) { showError("AI Unavailable", "Cannot run action."); return; } if (selectedOrganizerGroup.tabIds.length === 0) { showToast('No Group', 'Select group first.', 'warning'); return; }
     loader('organizer', true); updateStatus('organizer', `Fetching content...`, 'info'); let session = null; let title = `AI Action: ${actionType}`;
     try {
         const response = await chrome.runtime.sendMessage({ action: 'getTabGroupContent', tabIds: selectedOrganizerGroup.tabIds });
@@ -643,8 +704,8 @@ async function runOrganizerAction(actionType) {
         updateStatus('organizer', `Analyzing (${actionType})...`, 'info'); let prompt = '';
         switch (actionType) {
             case 'summarize': title = `Summary: "${selectedOrganizerGroup.groupName}"`; prompt = `Concise summary (2-4 bullets) of themes/info from combined content (${selectedOrganizerGroup.tabIds.length} pages) for "${selectedOrganizerGroup.groupName}". Markdown. Content:\n${combinedContent.substring(0,8000)}\n\nSummary:`; break;
-            case 'extract': title = `Data: "${selectedOrganizerGroup.groupName}"`; prompt = `Extract key data (stats, names, facts) from content for "${selectedOrganizerGroup.groupName}". Markdown bullets. Content:\n${combinedContent.substring(0,8000)}\n\nData:`; break;
-            case 'contacts': title = `Contacts: "${selectedOrganizerGroup.groupName}"`; prompt = `Scan text for contacts (email, phone, LinkedIn). List as markdown bullets or "None found." Content:\n${combinedContent.substring(0,8000)}\n\nContacts:`; break;
+            case 'extract': title = `Data: "${selectedOrganizerGroup.groupName}"`; prompt = `Extract key data (stats, names, facts) from content for "${selectedOrganizerGroup.groupName}". List key data points as a JSON object with clear keys and values. If no data is found, return an empty JSON object. Content:\n${combinedContent.substring(0,8000)}\n\nData:`; break;
+            case 'contacts': title = `Contacts: "${selectedOrganizerGroup.groupName}"`; prompt = `Extract all contact information (names, email addresses, phone numbers, and LinkedIn profile URLs) from the content. Present each contact as a separate JSON object with keys like 'name', 'email', 'phone', 'linkedin' within a JSON array. If no contacts are found, return an empty JSON array. Content:\n${combinedContent.substring(0,8000)}\n\nContacts:`; break;
              case 'analyzeContent': title = `Analysis: "${selectedOrganizerGroup.groupName}"`; prompt = `Analyze content (${selectedOrganizerGroup.tabIds.length} pages) for "${selectedOrganizerGroup.groupName}". Identify topics, sentiment, arguments, bias. Markdown. Content:\n${combinedContent.substring(0,8000)}\n\nAnalysis:`; break;
             default: throw new Error(`Unknown action: ${actionType}`);
         }
@@ -673,11 +734,11 @@ async function handleScribeStopUI() { // Called by message listener
     console.log("Processing steps:", currentScribeSteps);
     if (el.scribeStart) el.scribeStart.style.display = 'block'; if (el.scribeStop) { el.scribeStop.style.display = 'none'; el.scribeStop.style.animation = 'none'; el.scribeStop.disabled = false; }
     if (el.scribeMsgs) el.scribeMsgs.innerHTML = '';
-    isAiAvailable = await checkAI();
+    state.isAiAvailable = await checkAI();
     try {
         if (!currentScribeSteps || currentScribeSteps.length === 0) { if(el.results) el.results.innerHTML = `<div class="placeholder"><h2>No Clicks Recorded</h2></div>`; updateElementVisibility('scribe'); updateStatus('scribe','No clicks recorded.','warning'); return; }
         updateStatus('scribe', 'Generating guide...', 'info'); setViewMode('split');
-        if (!isAiAvailable) { showScribeStepsWithoutAI(); updateStatus('scribe','✅ Guide (Basic)','warning'); showToast('Guide Generated (Basic)','AI skipped.','warning'); updateElementVisibility('scribe'); if(el.scribeChat) addChatMessage(el.scribeMsgs, 'AI unavailable.', 'error'); }
+        if (!state.isAiAvailable) { showScribeStepsWithoutAI(); updateStatus('scribe','✅ Guide (Basic)','warning'); showToast('Guide Generated (Basic)','AI skipped.','warning'); updateElementVisibility('scribe'); if(el.scribeChat) addChatMessage(el.scribeMsgs, 'AI unavailable.', 'error'); }
         else { await genGuide(); updateStatus('scribe','✅ Guide Ready!','success'); showToast('Guide Generated','Workflow complete!','success'); updateElementVisibility('scribe'); }
     } catch (err) { console.error("Guide gen error:", err); updateStatus('scribe',`Guide Failed: ${err.message}`,'error'); if (currentScribeSteps?.length > 0 && el.results && !el.results.querySelector('.scribe-step')) { showScribeStepsWithoutAI(); updateElementVisibility('scribe'); if(el.scribeChat) addChatMessage(el.scribeMsgs, `AI guide error: ${err.message}`, 'error'); } else { showError("Scribe Error", `Guide failed: ${err.message}`); updateElementVisibility('scribe'); } }
     finally { loader('scribe', false); }
@@ -690,12 +751,12 @@ function showScribeStepsWithoutAI() {
 async function genGuide() {
     if (!el.results) return; let session = null; let html = `<div class="scribe-guide-container"><h2>📝 AI Workflow Guide</h2>`;
     try { session = await createSession();
-        for (let i = 0; i < currentScribeSteps.length; i++) { const step = currentScribeSteps[i]; const prompt = `Single sentence instruction for action: "${step.action}" on element "${step.details||'element'}". Imperative verb. Concise. Example: "Click 'Login'". Instruction:`; updateStatus('scribe', `Generating Step ${i+1}/${currentScribeSteps.length}...`, 'info'); let txt = `Action: ${step.action}`; try { const result = await session.prompt(prompt); txt = result.replace(/^instruction:\s*/i,'').trim(); } catch (promptErr) { console.warn(`AI step ${i+1} fail:`, promptErr); if (session) { try{await session.destroy(); session=null;}catch(e){} session = await createSession();} } html += `<div class="scribe-step"><div class="scribe-step-header"><span class="scribe-step-number">${i+1}</span><strong>${esc(step.action)}</strong></div><p>${esc(txt)}</p>${step.screenshotDataUrl ? `<img src="${step.screenshotDataUrl}" alt="Step ${i+1}">` : ''}</div>`; }
+        for (let i = 0; i < currentScribeSteps.length; i++) { const step = currentScribeSteps[i]; const screenshotInfo = step.screenshotDataUrl ? ' (Screenshot available for this step)' : ''; const prompt = `Generate a concise, user-friendly instruction for the following workflow step. Include the purpose of the step if inferable. Use an imperative verb. Example: "Click 'Login' to access your account." Workflow Step: "${step.action}" on element "${step.details||'element'}"${screenshotInfo}. Instruction:`; updateStatus('scribe', `Generating Step ${i+1}/${currentScribeSteps.length}...`, 'info'); let txt = `Action: ${step.action}`; try { const result = await session.prompt(prompt); txt = result.replace(/^instruction:\s*/i,'').trim(); } catch (promptErr) { console.warn(`AI step ${i+1} fail:`, promptErr); if (session) { try{await session.destroy(); session=null;}catch(e){} session = await createSession();} } html += `<div class="scribe-step"><div class="scribe-step-header"><span class="scribe-step-number">${i+1}</span><strong>${esc(step.action)}</strong></div><p>${esc(txt)}</p>${step.screenshotDataUrl ? `<img src="${step.screenshotDataUrl}" alt="Step ${i+1}">` : ''}</div>`; }
     } catch (err) { console.error("AI Guide Gen Error:", err); showScribeStepsWithoutAI(); throw err; }
     finally { html += '</div>'; if (el.results && !el.results.querySelector('.error')) el.results.innerHTML = html; if (session) { try { await session.destroy(); } catch (e) {} } }
 }
-async function generalize() { if (!isAiAvailable || !currentScribeSteps?.length) return; const steps = currentScribeSteps.map((s,i)=>`Step ${i+1}: ${s.action} on "${s.details||'el'}"`).join('\n'); const prompt = `Analyze steps. Identify task. Create reusable markdown template/checklist with generic placeholders (e.g., "[Username Field]"). Steps:\n${steps.substring(0,4000)}\n\nTask: [AI task]\n\nTemplate:`; await aiAction(prompt, 'Generalizing', 'scribe'); }
-async function analyzeWorkflow() { if (!isAiAvailable || !currentScribeSteps?.length) return; const steps = currentScribeSteps.map((s,i)=>`Step ${i+1}: ${s.action} on "${s.details||'el'}"`).join('\n'); const prompt = `Analyze steps for optimizations (redundancy, inefficiency). Suggest markdown bullets or "None found." Steps:\n${steps.substring(0,4000)}\n\nSuggestions:`; await aiAction(prompt, 'Analyzing', 'scribe'); }
+async function generalize() { if (!state.isAiAvailable || !currentScribeSteps?.length) return; const steps = currentScribeSteps.map((s,i)=>`Step ${i+1}: ${s.action} on "${s.details||'el'}"`).join('\n'); const prompt = `Analyze the following workflow steps to identify the core task and common patterns. Create a reusable Markdown template or checklist with generic placeholders (e.g., "[Username Field]") that can be adapted for similar workflows. Focus on clarity and adaptability. Steps:\n${steps.substring(0,4000)}\n\nTask: [AI task]\n\nTemplate:`; await aiAction(prompt, 'Generalizing', 'scribe'); }
+async function analyzeWorkflow() { if (!state.isAiAvailable || !currentScribeSteps?.length) return; const steps = currentScribeSteps.map((s,i)=>`Step ${i+1}: ${s.action} on "${s.details||'el'}"`).join('\n'); const prompt = `Analyze steps for optimizations (redundancy, inefficiency). Suggest markdown bullets or "None found." Steps:\n${steps.substring(0,4000)}\n\nSuggestions:`; await aiAction(prompt, 'Analyzing', 'scribe'); }
 function exportScribeText() { if (!currentScribeSteps?.length) return; let content = `Workflow Guide - ${new Date().toLocaleString()}\n\n`; const guide = el.results?.querySelector('.scribe-guide-container'); if (guide) { guide.querySelectorAll('.scribe-step').forEach(s => { content += `Step ${s.querySelector('.scribe-step-number')?.textContent}: ${s.querySelector('strong')?.textContent}\nInstruction: ${s.querySelector('p')?.textContent}\n\n`; }); } else { currentScribeSteps.forEach((s, i) => content += `Step ${i+1}: ${s.action}\nDetails: ${s.details||'N/A'}\n\n`); } downloadFile(content, `workflow-${Date.now()}.txt`, 'text/plain'); updateStatus('scribe','📥 Exported TXT','success'); }
 function exportScribeJson() { if (!currentScribeSteps?.length) return; const data = currentScribeSteps.map(s=>({action:s.action,details:s.details,timestamp:s.timestamp})); downloadFile(JSON.stringify(data, null, 2), `workflow-${Date.now()}.json`, 'application/json'); updateStatus('scribe','📥 Exported JSON','success'); }
 async function exportScribePdf() { if (!currentScribeSteps?.length || typeof jsPDF === 'undefined') return; updateStatus('scribe','Generating PDF...','info'); loader('scribe', true); try { const { jsPDF } = window.jspdf; const doc = new jsPDF(); let y=15; const margin=15, pageH=doc.internal.pageSize.height, maxW=doc.internal.pageSize.width-margin*2; doc.setFontSize(18).text("Workflow Guide", margin, y); y+=10; doc.setFontSize(10).setTextColor(150).text(`Generated: ${new Date().toLocaleString()}`, margin, y); y+=15; doc.setTextColor(0).setFontSize(12); const guide = el.results?.querySelector('.scribe-guide-container'); if (!guide) throw new Error("Guide content not found."); const steps = guide.querySelectorAll('.scribe-step'); for (let i = 0; i < steps.length; i++) { const s = steps[i]; const num=s.querySelector('.scribe-step-number')?.textContent||(i+1); const act=s.querySelector('strong')?.textContent||'Act'; const instr=s.querySelector('p')?.textContent||''; const img=s.querySelector('img'); if(y>pageH-margin-30){doc.addPage();y=margin;} doc.setFont(undefined,'bold').text(`Step ${num}: ${act}`, margin, y); y+=7; doc.setFont(undefined,'normal'); const lines=doc.splitTextToSize(instr, maxW); doc.text(lines, margin, y); y+=lines.length*5+5; if(img?.src?.startsWith('data:image')){ try{ const imgData=img.src; const props=doc.getImageProperties(imgData); const w=maxW*0.8, h=(props.height*w)/props.width; if(y+h>pageH-margin){doc.addPage();y=margin;} doc.addImage(imgData,'JPEG',margin+(maxW*0.1),y,w,h); y+=h+10; }catch(imgErr){console.warn(`PDF Img Err ${num}:`,imgErr); if(y>pageH-margin-10){doc.addPage();y=margin;} doc.setTextColor(150).text("(Screenshot fail)",margin,y); y+=7; doc.setTextColor(0);} } y+=5; } doc.save(`workflow-${Date.now()}.pdf`); updateStatus('scribe','📥 Exported PDF','success'); } catch (e) { console.error("PDF Export Fail:", e); showError("PDF Export Failed", e.message); updateStatus('scribe','PDF Export Failed','error'); } finally { loader('scribe', false); } }
@@ -711,22 +772,231 @@ function showToast(title,msg,type='info',dur=3000){const colors={info:'var(--acc
 function copyReport(){if(!currentAuditReport)return;navigator.clipboard.writeText(currentAuditReport).then(()=>{showToast('Copied','Report copied!','success');if(el.copyBtn){el.copyBtn.textContent='Copied!';setTimeout(()=>el.copyBtn.innerHTML='📋 Copy',2000);}}).catch(err=>{showToast('Copy Error',err.message,'error');});}
 function exportAuditMarkdown(){if(!currentAuditReport)return;let fn=`audit-${Date.now()}.md`;if(currentAuditUrl){try{fn=`audit-${new URL(currentAuditUrl).hostname}-${Date.now()}.md`;}catch(e){}}downloadFile(currentAuditReport,fn,'text/markdown');showToast('Exported','.md downloaded!','success');}
 function exportAuditJson(){if(!currentAuditData)return;let fn=`audit-data-${Date.now()}.json`;if(currentAuditUrl){try{fn=`audit-data-${new URL(currentAuditUrl).hostname}-${Date.now()}.json`;}catch(e){}}downloadFile(JSON.stringify(currentAuditData,null,2),fn,'application/json');showToast('Exported','.json downloaded!','success');}
-async function exportAuditPdf(){if(!currentAuditReport||typeof jsPDF==='undefined')return;updateStatus('audit','Generating PDF...','info');loader('audit',true);try{const{jsPDF}=window.jspdf;const doc=new jsPDF();let y=15,m=15,pH=doc.internal.pageSize.height,maxW=doc.internal.pageSize.width-m*2;let title="Audit";if(currentAuditUrl)try{title=new URL(currentAuditUrl).hostname;}catch(e){}doc.setFontSize(18).text(title,m,y);y+=10;doc.setFontSize(10).setTextColor(150).text(`${new Date().toLocaleString()}`,m,y);y+=15;doc.setTextColor(0).setFontSize(12);const lines=currentAuditReport.replace(/^# (.*)/gm,'##H1##$1').replace(/^## (.*)/gm,'##H2##$1').replace(/^### (.*)/gm,'##H3##$1').replace(/^- (.*)/gm,'##B##$1').split('\n');for(const l of lines){if(y>pH-m){doc.addPage();y=m;}if(l.startsWith('##H1##')){doc.setFont(undefined,'bold').setFontSize(18).text(l.replace('##H1##',''),m,y);y+=10;}else if(l.startsWith('##H2##')){doc.setFont(undefined,'bold').setFontSize(14).text(l.replace('##H2##',''),m,y);y+=8;}else if(l.startsWith('##H3##')){doc.setFont(undefined,'bold').setFontSize(12).text(l.replace('##H3##',''),m,y);y+=7;}else if(l.startsWith('##B##')){doc.setFont(undefined,'normal').setFontSize(11).text(`• ${l.replace('##B##','')}`,m+5,y);y+=6;}else{doc.setFont(undefined,'normal').setFontSize(11);const sl=doc.splitTextToSize(l,maxW);doc.text(sl,m,y);y+=sl.length*5;}y+=2;}let fn=`audit-${Date.now()}.pdf`;if(currentAuditUrl)try{fn=`audit-${new URL(currentAuditUrl).hostname}-${Date.now()}.pdf`;}catch(e){}doc.save(fn);updateStatus('audit','📥 PDF Exported','success');}catch(e){showError("PDF Export Failed",e.message);updateStatus('audit','PDF Export Fail','error');}finally{loader('audit',false);}}
+async function exportAuditPdf() {
+    if (!currentAuditData || typeof jsPDF === 'undefined') return;
+    updateStatus('audit', 'Generating PDF...', 'info');
+    loader('audit', true);
+
+    try {
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF();
+        let y = 15; // Initial Y position
+        const margin = 15;
+        const pageH = doc.internal.pageSize.height;
+        const maxW = doc.internal.pageSize.width - margin * 2;
+
+        // Helper to add text with line breaks and check for new page
+        const addText = (text, x, yPos, options = {}) => {
+            const splitText = doc.splitTextToSize(text, maxW - (x - margin));
+            for (const line of splitText) {
+                if (yPos + 7 > pageH - margin) { // Check if new page is needed
+                    doc.addPage();
+                    yPos = margin;
+                    doc.setFontSize(10).setTextColor(150).text(`Page ${doc.internal.getNumberOfPages()}`, doc.internal.pageSize.width - margin, 10, { align: 'right' });
+                }
+                doc.text(line, x, yPos);
+                yPos += 7; // Line height
+            }
+            return yPos;
+        };
+
+        // --- Header ---
+        let title = "Audit Report";
+        if (currentAuditUrl) {
+            try { title = new URL(currentAuditUrl).hostname; } catch (e) { /* ignore */ }
+        }
+        doc.setFontSize(22).setFont(undefined, 'bold').text(`Spectrum AI Pro - ${title}`, margin, y);
+        y += 10;
+        doc.setFontSize(10).setFont(undefined, 'normal').setTextColor(150).text(`Generated: ${new Date().toLocaleString()}`, margin, y);
+        y += 15;
+        doc.setTextColor(0);
+
+        // --- Overall Stats ---
+        doc.setFontSize(16).setFont(undefined, 'bold').text("Overall Analysis", margin, y);
+        y += 8;
+        doc.setFontSize(12).setFont(undefined, 'normal');
+        y = addText(`Overall Score: ${currentAuditData.score}/100 (${lvl(currentAuditData.score)})`, margin, y);
+        y = addText(`Site Health: ${currentAuditData.health}/100 (${hlth(currentAuditData.health)})`, margin, y);
+        y = addText(`Issues Found: ${currentAuditData.issues.errors || 0} Errors, ${currentAuditData.issues.warnings || 0} Warnings, ${currentAuditData.issues.notices || 0} Notices`, margin, y);
+        y += 10;
+
+        // --- Executive Summary ---
+        doc.setFontSize(16).setFont(undefined, 'bold').text("Executive Summary", margin, y);
+        y += 8;
+        doc.setFontSize(12).setFont(undefined, 'normal');
+        const executiveSummaryText = extractExecutiveSummary(currentAuditData.report).replace(/<[^>]*>?/gm, ''); // Remove HTML tags
+        y = addText(executiveSummaryText, margin, y);
+        y += 10;
+
+        // --- 12-Point Analysis Breakdown ---
+        doc.setFontSize(16).setFont(undefined, 'bold').text("12-Point Analysis Breakdown", margin, y);
+        y += 8;
+        doc.setFontSize(12).setFont(undefined, 'normal');
+
+        for (const [key, meta] of Object.entries(AUDIT_POINTS_META)) {
+            const score = (currentAuditData.scores[key] || 0) * 10;
+            const scoreText = `${meta.name}: ${score}/100`;
+            const descriptionText = meta.desc;
+
+            if (y + 25 > pageH - margin) { // Estimate space needed for score item
+                doc.addPage();
+                y = margin;
+                doc.setFontSize(10).setTextColor(150).text(`Page ${doc.internal.getNumberOfPages()}`, doc.internal.pageSize.width - margin, 10, { align: 'right' });
+                doc.setFontSize(16).setFont(undefined, 'bold').text("12-Point Analysis Breakdown (cont.)", margin, y);
+                y += 8;
+                doc.setFontSize(12).setFont(undefined, 'normal');
+            }
+
+            doc.setFont(undefined, 'bold').text(scoreText, margin, y);
+            y += 7;
+            doc.setFont(undefined, 'normal');
+            y = addText(descriptionText, margin + 5, y);
+            y += 5;
+        }
+        y += 10;
+
+        // --- Detailed Report ---
+        doc.setFontSize(16).setFont(undefined, 'bold').text("Detailed Report", margin, y);
+        y += 8;
+        doc.setFontSize(12).setFont(undefined, 'normal');
+
+        // Convert Markdown to plain text for PDF, handling headings and lists
+        const reportLines = currentAuditReport.split('\n');
+        for (const line of reportLines) {
+            let processedLine = line;
+            let fontSize = 12;
+            let fontStyle = 'normal';
+            let indent = 0;
+
+            if (line.startsWith('# ')) { // H1
+                processedLine = line.substring(2);
+                fontSize = 18;
+                fontStyle = 'bold';
+                y += 5; // Extra space before heading
+            } else if (line.startsWith('## ')) { // H2
+                processedLine = line.substring(3);
+                fontSize = 16;
+                fontStyle = 'bold';
+                y += 4;
+            } else if (line.startsWith('### ')) { // H3
+                processedLine = line.substring(4);
+                fontSize = 14;
+                fontStyle = 'bold';
+                y += 3;
+            } else if (line.startsWith('- ')) { // List item
+                processedLine = `• ${line.substring(2)}`;
+                indent = 5;
+            } else if (line.startsWith('```')) { // Code block - basic handling
+                processedLine = line;
+                fontStyle = 'monospace';
+                fontSize = 10;
+            }
+
+            doc.setFontSize(fontSize).setFont(undefined, fontStyle);
+            y = addText(processedLine, margin + indent, y);
+            if (line.startsWith('#')) y += 3; // Extra space after heading
+        }
+
+        // Add page numbers to all pages
+        const totalPages = doc.internal.getNumberOfPages();
+        for (let j = 1; j <= totalPages; j++) {
+            doc.setPage(j);
+            doc.setFontSize(10).setTextColor(150).text(`Page ${j} of ${totalPages}`, doc.internal.pageSize.width - margin, pageH - 10, { align: 'right' });
+        }
+
+        doc.save(`audit-report-${Date.now()}.pdf`);
+        updateStatus('audit', '📥 PDF Exported', 'success');
+    } catch (e) {
+        console.error("PDF Export Fail:", e);
+        showError("PDF Export Failed", e.message);
+        updateStatus('audit', 'PDF Export Failed', 'error');
+    } finally {
+        loader('audit', false);
+    }
+}
 function toggleFullscreen(){if(el.wrapper.classList.contains('results-only')){setViewMode('split');el.fullscreenBtn.innerHTML='🔍';el.fullscreenBtn.title='Fullscreen';}else{setViewMode('results');el.fullscreenBtn.innerHTML='📖';el.fullscreenBtn.title='Split View';}}
+
+function scrollToReportSection(sectionId) {
+    const fullReportDiv = document.getElementById('fullReport');
+    if (fullReportDiv) {
+        // Ensure the detailed report is visible
+        fullReportDiv.style.display = 'block';
+        const toggleBtn = document.getElementById('toggleBtn');
+        if (toggleBtn) toggleBtn.textContent = '🙈 Hide Report';
+
+        const targetElement = fullReportDiv.querySelector(`#${sectionId}`);
+        if (targetElement) {
+            targetElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        } else {
+            console.warn(`Section with ID ${sectionId} not found in detailed report.`);
+            // If specific section not found, just scroll to the top of the detailed report
+            fullReportDiv.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+    }
+}
 function esc(t){if(!t)return'';const d=document.createElement('div');d.textContent=t;return d.innerHTML;}
+
+function escapeBackticks(str) {
+    return str.replace(/`/g, '\\`');
+}
 
 // --- Chat ---
 async function chat(type) {
-    if (isAiAvailable !== true && !await checkAI()) { showError("AI Unavailable", "Chat disabled."); return; }
-    const inp = el[`${type}Input`], msgs = el[`${type}Msgs`]; if (!inp || !msgs) return console.error(`Chat elements missing: ${type}`);
+    if (state.isAiAvailable !== true && !await checkAI()) { showError("AI Unavailable", "Chat disabled."); return; }
+    const inp = el[`${type}Input`], msgs = el[`${type}Msgs`];
+    console.log(`[chat] type: ${type}, inp: ${inp}, msgs: ${msgs}`);
+    if (!inp || !msgs) return console.error(`Chat elements missing: ${type}`);
     const msg = inp.value.trim(); if (!msg) return; addChatMessage(msgs, msg, 'user'); inp.value = ''; console.log(`[Chat ${type}] User: ${msg}`);
-    let ctx = '', base = " Assistant for Spectrum AI Pro. Be concise. Use ONLY provided context. If context empty/irrelevant, state info lacking & suggest user run action (Audit, Organize, Record)."; let fullPrompt = '';
-    try { if (type === 'auditor') { ctx = currentAuditReport ? `Context: Audit Report:\n${currentAuditReport.substring(0,2000)}\n\n` : 'Context: No audit run.\n\n'; } else if (type === 'organizer') { const info = currentTabGroups.length>0?currentTabGroups.map(g=>`"${g.groupName}": ${g.tabIds.length} tabs`).join('; '):''; ctx = info ? `Context: Suggested groups: ${info}.\n\n` : 'Context: No tabs organized.\n\n'; } else if (type === 'scribe') { const steps = currentScribeSteps.length>0?currentScribeSteps.map((s,i)=>`Step ${i+1}: ${s.action} on "${s.details||'el'}"`).slice(0,10).join('\n'):''; ctx = steps ? `Context: Workflow (10 steps):\n${steps}\n\n` : 'Context: No workflow recorded.\n\n'; } fullPrompt = `${ctx}User Question: ${msg}\n\n${base}`; console.log(`[Chat ${type}] Prompt ctx: ${ctx.substring(0,100)}...`); }
-    catch (ctxErr) { console.error(`Ctx prep error (${type}):`, ctxErr); addChatMessage(msgs, `❌ Ctx Error: ${ctxErr.message}`, 'error'); return; }
-    const thinkDiv = document.createElement('div'); thinkDiv.className = 'chat-message ai thinking'; thinkDiv.innerHTML = `<p>💭 Thinking...</p>`; msgs.appendChild(thinkDiv); msgs.scrollTop = msgs.scrollHeight;
+    let ctx = '', base = "You are Spectrum AI Pro, a helpful web analyst assistant. Provide concise, analytical, and predictive responses based on the provided context. If context is empty or irrelevant, state that information is lacking and suggest the user run an action (Audit, Organize, Record) to generate relevant data. Focus on analysis, comparison, and prediction where possible."; let fullPrompt = '';
+    try {
+        if (type === 'auditor') {
+            if (currentAuditData) {
+                ctx =
+                    `Context: Audit Data (JSON): ${escapeBackticks(JSON.stringify(currentAuditData, null, 2)).substring(0, 1500)}\n\n` +
+                    `Audit Report (Markdown): ${escapeBackticks(currentAuditReport || '').substring(0, 2000)}\n\n`;
+            } else {
+                ctx = 'Context: No audit run.\n\n';
+            }
+        } else if (type === 'organizer') {
+            if (selectedOrganizerGroup && Array.isArray(selectedOrganizerGroup.tabIds) && selectedOrganizerGroup.tabIds.length > 0) {
+                ctx =
+                    `Context: Selected Tab Group: ${escapeBackticks(selectedOrganizerGroup.groupName || '')} with ${selectedOrganizerGroup.tabIds.length} tabs. Tab IDs: ${escapeBackticks(JSON.stringify(selectedOrganizerGroup.tabIds))}\n\n`;
+            } else if (Array.isArray(currentTabGroups) && currentTabGroups.length > 0) {
+                ctx =
+                    `Context: Suggested groups: ${escapeBackticks(JSON.stringify(currentTabGroups.map(g => ({
+                        name: g.groupName,
+                        tabCount: Array.isArray(g.tabIds) ? g.tabIds.length : 0,
+                        confidence: g.confidence
+                    })))).substring(0, 1500)}\n\n`;
+            } else {
+                ctx = 'Context: No tabs organized.\n\n';
+            }
+        } else if (type === 'scribe') {
+            let steps = '';
+            if (Array.isArray(currentScribeSteps) && currentScribeSteps.length > 0) {
+                steps = currentScribeSteps
+                    .map((s, i) => `Step ${i + 1}: ${s.action} on "${s.details || 'el'}"`)
+                    .slice(0, 10).join('\n');
+            }
+            ctx = steps
+                ? `Context: Workflow (10 steps): \n${steps}\n\n`
+                : 'Context: No workflow recorded.\n\n';
+        }
+        fullPrompt = `${ctx}User Question: ${msg}\n\n${base}`;
+        console.log(`[Chat ${type}] Prompt ctx: ${(ctx || '').substring(0, 100)}...`);
+    } catch (ctxErr) {
+        console.error(`Ctx prep error (${type}):`, ctxErr);
+        addChatMessage(msgs, `❌ Ctx Error: ${ctxErr && ctxErr.message ? ctxErr.message : ctxErr}`, 'error');
+        return;
+    }
+    const thinkDiv = document.createElement('div');
+    thinkDiv.className = 'chat-message ai thinking';
+    thinkDiv.innerHTML = `<p>💭 Thinking...</p>`;
+    msgs.appendChild(thinkDiv);
+    msgs.scrollTop = msgs.scrollHeight;
     let session = null;
     try { session = await createSession(); console.log(`[Chat ${type}] Prompting AI...`); const res = await session.prompt(fullPrompt); console.log(`[Chat ${type}] AI response.`); if(thinkDiv.parentNode===msgs)msgs.removeChild(thinkDiv); addChatMessage(msgs, res, 'ai'); }
-    catch (err) { console.error(`AI chat error (${type}):`, err); if(thinkDiv.parentNode===msgs)msgs.removeChild(thinkDiv); addChatMessage(msgs, `❌ AI Error: ${err.message}. Ensure AI enabled & Chrome restarted.`, 'error'); isAiAvailable = false; disableAiFeatures(); }
+    catch (err) { console.error(`AI chat error (${type}):`, err); if(thinkDiv.parentNode===msgs)msgs.removeChild(thinkDiv); addChatMessage(msgs, `❌ AI Error: ${err.message}. Ensure AI enabled & Chrome restarted.`, 'error'); state.isAiAvailable = false; disableAiFeatures(); }
     finally { if (session) { try { await session.destroy(); } catch (e) {} } }
 }
 function addChatMessage(msgsContainer, text, role) { const div = document.createElement('div'); div.className = `chat-message ${role}`; if(role==='error'){div.style.background='rgba(239,68,68,0.2)';div.style.color='#f87171';} if(role==='ai'){div.innerHTML=renderMarkdown(text);}else{div.textContent=text;} msgsContainer.appendChild(div); requestAnimationFrame(()=>msgsContainer.scrollTop=msgsContainer.scrollHeight); }

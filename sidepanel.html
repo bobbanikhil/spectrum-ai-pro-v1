@@ -1,9 +1,12 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en-US">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Spectrum AI Pro</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="sidepanel.css">
 </head>
 <body>
@@ -65,6 +68,14 @@
                                 <span id="auditStatusText">Ready to analyze</span>
                             </div>
                             <div id="auditLoader" class="loader" style="display: none;"></div>
+                        </div>
+
+                        <div id="auditResultsContainer" class="audit-results-container" style="display: none;">
+                            <h3 class="section-title">Detailed Audit Report</h3>
+                            <div id="auditResultsContent" class="audit-results-content">
+                                <!-- Audit results will be dynamically loaded here -->
+                                <p>Run an audit to see detailed analysis across 12 key areas.</p>
+                            </div>
                         </div>
 
                         <div id="auditorChatContainer" class="chat-container">
@@ -189,6 +200,15 @@
     </div>
 
     <script src="jspdf.umd.min.js"></script>
+    <script src="marked.min.js"></script>
+    <script src="init_marked.js"></script>
     <script src="sidepanel.js"></script>
+    <div id="modal" class="modal-container" style="display: none;">
+        <div class="modal-content">
+            <button id="modalCloseBtn" class="modal-close-btn">X</button>
+            <h3 id="modalTitle"></h3>
+            <div id="modalBody"></div>
+        </div>
+    </div>
 </body>
 </html>

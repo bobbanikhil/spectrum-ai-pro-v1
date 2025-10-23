@@ -39,7 +39,8 @@
       "resources": [
         "scribe.css",
         "sidepanel.css",
-        "scribe-content.js"
+        "scribe-content.js",
+        "init_marked.js"
       ],
       "matches": [
         "<all_urls>"

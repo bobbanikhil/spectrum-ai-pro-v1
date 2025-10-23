@@ -41,7 +41,7 @@
 }
 
 body {
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', sans-serif;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', sans-serif;
     font-size: 14px;
     line-height: 1.6;
     color: var(--text-primary);
@@ -81,12 +81,13 @@ body {
 }
 
 .logo-icon {
-    font-size: 24px;
+    font-size: 28px; /* Increased size */
+    color: var(--accent); /* Added color */
     animation: pulse 2s ease-in-out infinite;
 }
 
 .app-title {
-    font-size: 20px;
+    font-size: 22px; /* Increased size */
     font-weight: 700;
     margin: 0;
     color: var(--text-primary);
@@ -1067,5 +1068,80 @@ body {
 
 @keyframes fadeOut {
     from { opacity: 1; }
-    to { opacity: 0; }
+    
+
+/* ===== CONFIDENCE SCORE ===== */
+.confidence-score {
+    display: inline-block;
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 700;
+    margin-left: 8px;
+    color: white;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    box-shadow: var(--shadow-sm);
+}
+
+.confidence-high {
+    background-color: var(--success);
+}
+
+.confidence-medium {
+    background-color: var(--warning);
+}
+
+.confidence-low {
+    background-color: var(--error);
+}
+/* ===== AUDIT RESULTS CONTAINER ===== */
+.audit-results-container {
+    background: var(--bg-secondary);
+    padding: 20px;
+    border-radius: var(--radius-md);
+    margin-top: 20px;
+    border: 1px solid var(--border);
+    box-shadow: var(--shadow-md);
+}
+
+.audit-results-container .section-title {
+    margin-bottom: 15px;
+    color: var(--text-primary);
+    font-size: 18px;
+    font-weight: 700;
+}
+
+.audit-results-content {
+    line-height: 1.7;
+    color: var(--text-secondary);
+}
+
+.audit-results-content h1, .audit-results-content h2, .audit-results-content h3 {
+    color: var(--text-primary);
+    margin-top: 20px;
+    margin-bottom: 10px;
+    font-weight: 600;
+}
+
+.audit-results-content h1 { font-size: 24px; }
+.audit-results-content h2 { font-size: 20px; }
+.audit-results-content h3 { font-size: 18px; }
+
+.audit-results-content p {
+    margin-bottom: 10px;
+}
+
+.audit-results-content ul {
+    list-style: disc;
+    margin-left: 20px;
+    margin-bottom: 10px;
+}
+
+.audit-results-content li {
+    margin-bottom: 5px;
+}
+
+.audit-results-content strong {
+    color: var(--text-primary);
 }

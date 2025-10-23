@@ -57,20 +57,20 @@ function setupContextMenus() {
 }
 
 // Context menu click handling
-chrome.contextMenus.onClicked.addListener((info, tab) => {
+chrome.contextMenus.onClicked.addListener(async (info, tab) => {
     if (!tab || !tab.windowId) {
         console.warn("Context menu clicked without valid tab object.");
         return;
     }
     switch (info.menuItemId) {
         case 'audit-page':
-            triggerSidePanelAction('triggerAudit', tab);
+            await triggerSidePanelAction('triggerAudit', tab);
             break;
         case 'start-scribe':
-            triggerSidePanelAction('startScribeRecording', tab);
+            await triggerSidePanelAction('startScribeRecording', tab);
             break;
         case 'organize-tabs':
-            triggerSidePanelAction('organizeTabs', tab);
+            await triggerSidePanelAction('organizeTabs', tab);
             break;
     }
 });
@@ -85,13 +85,13 @@ chrome.commands.onCommand.addListener(async (command) => {
         }
         switch (command) {
             case 'run-audit':
-                triggerSidePanelAction('triggerAudit', tab);
+                await triggerSidePanelAction('triggerAudit', tab);
                 break;
             case 'start-scribe':
-                triggerSidePanelAction('startScribeRecording', tab);
+                await triggerSidePanelAction('startScribeRecording', tab);
                 break;
             case 'organize-tabs':
-                triggerSidePanelAction('organizeTabs', tab);
+                await triggerSidePanelAction('organizeTabs', tab);
                 break;
         }
     } catch (error) {
@@ -103,41 +103,24 @@ chrome.commands.onCommand.addListener(async (command) => {
 // *** START: RESTORED COMMUNICATION ***
 // Helper to open side panel and THEN send a message
 async function triggerSidePanelAction(action, tab) {
+    console.log(`Attempting to trigger action: ${action}`);
     if (!tab || !tab.windowId) {
         console.error(`Cannot trigger action ${action}, invalid tab provided.`);
         return;
     }
+    console.log(`Tab ID: ${tab.id}, Window ID: ${tab.windowId}`);
+
     try {
-        // 1. Open the side panel
+        // Open the side panel first, while we still have the user gesture context.
         await chrome.sidePanel.open({ windowId: tab.windowId });
-        console.log(`Side panel opening for action "${action}"...`);
+        console.log(`Side panel opened successfully for action "${action}".`);
 
-        // 2. Wait briefly for the panel to potentially initialize its listeners
-        await new Promise(resolve => setTimeout(resolve, 300)); // Shorter delay might be okay now
-
-        // 3. Send the message
-        try {
-             if (chrome.runtime?.id) { // Check runtime validity
-                 await chrome.runtime.sendMessage({ action: action, tabId: tab.id });
-                 console.log(`Action "${action}" message sent to side panel.`);
-             } else {
-                  console.warn(`Runtime invalidated before sending action "${action}" message.`);
-                  // Fallback: Set pending action if message fails
-                  await chrome.storage.local.set({ pendingAction: action, pendingTabId: tab.id });
-             }
-        } catch (msgError) {
-             console.error(`Error sending message for action "${action}" after opening side panel:`, msgError.message);
-             // Fallback: Set pending action if message fails (e.g., "Receiving end does not exist")
-             if (msgError.message.includes("Receiving end does not exist")) {
-                 console.warn("Side panel might not have been ready. Setting pending action as fallback.");
-                 await chrome.storage.local.set({ pendingAction: action, pendingTabId: tab.id });
-             }
-        }
+        // Now set the pending action in storage.
+        await chrome.storage.local.set({ pendingAction: action, pendingTabId: tab.id });
+        console.log(`Pending action '${action}' set in storage.`);
 
     } catch (error) {
-        console.error(`Failed to trigger ${action} (could not open side panel?):`, error.message);
-        // Ensure pending action is cleared if opening fails
-        await chrome.storage.local.remove(['pendingAction', 'pendingTabId']);
+        console.error(`Failed to trigger ${action}. Error:`, error);
     }
 }
 // *** END: RESTORED COMMUNICATION ***
@@ -186,9 +169,17 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             isAsync = true; // logScribeStep is async due to screenshot
              (async () => {
                 if (isScribeRecording) {
-                    await logScribeStep('Click', request.details);
+                    await logScribeStep('Click', request.details, request.screenshotDataUrl);
                 }
                 sendResponse({ success: true }); // Acknowledge receipt
+            })();
+            break;
+
+        case 'captureVisibleTab':
+            isAsync = true;
+            (async () => {
+                const screenshotDataUrl = await captureScreenshot();
+                sendResponse({ screenshotDataUrl: screenshotDataUrl });
             })();
             break;
 
@@ -349,33 +340,17 @@ async function handleStopScribe() {
 }
 
 
-async function logScribeStep(action, details) {
+async function logScribeStep(action, details, screenshotDataUrl) {
     if (!isScribeRecording) return;
 
-    // *** START: SCREENSHOT DEBOUNCE FIX ***
-    // Increased cooldown to 1 second
-    const now = Date.now();
-    let screenshotDataUrl = null;
-    if (now - lastScreenshotTime > 1000) { // Increased debounce time
-        try {
-            screenshotDataUrl = await captureScreenshot();
-            if (screenshotDataUrl) { // Only update time if capture was successful
-                lastScreenshotTime = now;
-            }
-        } catch (e) {
-            // Error already logged in captureScreenshot
-        }
-    } else {
-        console.log("Skipping screenshot due to rapid clicks (debounce).");
-    }
-    // *** END: SCREENSHOT DEBOUNCE FIX ***
-
+    // No longer capturing screenshot here, it comes from content script
+    // The content script is responsible for sending the screenshotDataUrl
 
     scribeSteps.push({
         action: action,
         details: details,
         timestamp: Date.now(),
-        screenshotDataUrl: screenshotDataUrl // May be null
+        screenshotDataUrl: screenshotDataUrl // Now passed directly
     });
     console.log('Scribe step logged:', action, details ? `"${details.substring(0, 50)}..."` : '(No details)');
 }

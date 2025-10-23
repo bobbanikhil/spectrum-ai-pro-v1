@@ -13,15 +13,39 @@ if (window.spectrumAIContentScriptActive) {
     window.spectrumAIContentScriptActive = true;
     console.log('🚀 Spectrum AI Scribe: Content script injected.');
 
-    const handleScribeClick = (e) => {
+    async function captureScreenshot() {
+        try {
+            const response = await chrome.runtime.sendMessage({ action: 'captureVisibleTab' });
+            return response?.screenshotDataUrl || null;
+        } catch (e) {
+            console.error("Spectrum AI: Failed to capture screenshot:", e);
+            return null;
+        }
+    }
+
+    const handleScribeClick = async (e) => {
         let target = e.target;
-        let details = target.innerText || target.value || target.getAttribute('aria-label') || target.name || target.id || target.tagName;
-        details = details ? details.trim().replace(/\s+/g, ' ').substring(0, 100) : `element (${target.tagName})`;
+        let details = '';
+        if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') {
+            details = `Input field: ${target.name || target.id || target.placeholder || 'N/A'}`; 
+        } else if (target.tagName === 'A') {
+            details = `Link: ${target.innerText.substring(0, 50) || target.href || 'N/A'}`; 
+        } else if (target.tagName === 'BUTTON') {
+            details = `Button: ${target.innerText.substring(0, 50) || target.id || 'N/A'}`; 
+        } else if (target.id) {
+            details = `Element with ID: ${target.id}`; 
+        } else if (target.className) {
+            details = `Element with class: ${target.className.split(' ')[0]}`; 
+        } else {
+            details = target.innerText ? `Text: ${target.innerText.substring(0, 50)}` : `Element: ${target.tagName}`; 
+        }
+        details = details.trim().replace(/\s+/g, ' ').substring(0, 100);
         console.log('Scribe: Click detected on:', details);
 
+        const screenshotDataUrl = await captureScreenshot();
         try {
             if (chrome.runtime?.id) {
-                chrome.runtime.sendMessage({ action: 'logScribeClick', details: details });
+                chrome.runtime.sendMessage({ action: 'logScribeClick', details: details, screenshotDataUrl: screenshotDataUrl });
             } else {
                  console.warn("Spectrum AI: Runtime context invalidated. Cannot send click event. Please reload the page to continue recording accurately."); // Added advice
                  document.body.removeEventListener('click', handleScribeClick, true);
