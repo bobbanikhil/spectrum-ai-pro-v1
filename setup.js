@@ -1,132 +1,105 @@
-'use strict';
-
-/// ==== TEMPORARY MODIFICATION in setup.js ====
-
-async function checkAIAvailability() {
-    const statusIcon = document.getElementById('aiStatusIcon');
-    const statusDesc = document.getElementById('aiStatusDesc');
-    const enableBtn = document.getElementById('enableAIBtn');
-     try {
-        if (!statusIcon || !enableBtn) return;
-        statusIcon.className = 'requirement-icon checking'; statusIcon.textContent = '⏳'; statusDesc.textContent = 'Checking AI status...';
-        let available = false; let availabilityStatus = 'unknown';
-
-        // *** CHANGE: Only check for self.LanguageModel ***
-        const LangModelCapExists = typeof self.LanguageModel !== 'undefined';
-        console.log(`Setup Modified Check: self.LanguageModel exists = ${LangModelCapExists}`);
-
-        if (!LangModelCapExists) {
-            console.warn("`self.LanguageModel` API structure not found in setup.");
-            statusDesc.textContent = 'API structure missing. Check flags & relaunch.';
-            available = false;
-        } else {
-            console.log("Checking model availability via self.LanguageModel.availability() in setup...");
-            availabilityStatus = await self.LanguageModel.availability();
-            console.log("Model availability status in setup:", availabilityStatus);
-            if (availabilityStatus === 'no' || availabilityStatus === 'unavailable') {
-                console.error(`AI Model availability reported as '${availabilityStatus}' in setup.`);
-                statusDesc.textContent = `Model '${availabilityStatus}'. Check flags/relaunch.`;
-                available = false;
-            } else if (availabilityStatus === 'after-download') {
-                 console.warn("AI Model needs download. API exists.");
-                 statusDesc.textContent = `Model requires download (may take time after relaunch).`;
-                 available = true; // API structure is present
-            }
-             else if (availabilityStatus === 'readily' || availabilityStatus === 'available') {
-                 try {
-                     // *** CHANGE: Call create directly on LanguageModel ***
-                     const s = await self.LanguageModel.create({ outputLanguage: 'en' });
-                     await s.destroy();
-                     console.log("self.LanguageModel.create() check successful in setup.");
-                     available = true;
-                 } catch (sessionError) {
-                     console.error("Test session creation failed in setup:", sessionError);
-                     available = false; statusDesc.textContent = `Session test failed: ${sessionError.message}`;
-                 }
-            } else {
-                 console.warn("Unknown AI availability status:", availabilityStatus);
-                 statusDesc.textContent = `Unknown status: ${availabilityStatus}. Check flags.`;
-                 available = false;
-            }
-        }
-
-        if (available) {
-            statusIcon.className = 'requirement-icon check';
-            statusIcon.textContent = '✓';
-            // Show more specific status
-             if (availabilityStatus === 'after-download') {
-                 // Keep the download message
-                 statusDesc.textContent = `Model downloading/pending. Relaunch Chrome if needed.`;
-                 // Keep button enabled to show instructions again
-                 enableBtn.textContent = 'Enable AI Features (Instructions)';
-                 enableBtn.disabled = false;
-             } else { // readily or available
-                 statusDesc.textContent = 'AI features detected & ready!';
-                 enableBtn.textContent = 'AI Features Detected';
-                 enableBtn.disabled = true;
-                 enableBtn.style.opacity = '0.6';
-             }
-        } else {
-            statusIcon.className = 'requirement-icon warning';
-            statusIcon.textContent = '!';
-            // Keep specific error messages if set above
-            if (!statusDesc.textContent.includes('Model') && !statusDesc.textContent.includes('Session') && !statusDesc.textContent.includes('API')) {
-                 statusDesc.textContent = 'AI not detected. Click button for setup.';
-            }
-            enableBtn.textContent = 'Enable AI Features (Instructions)';
-            enableBtn.disabled = false;
-        }
-    } catch (error) {
-        statusIcon.className = 'requirement-icon warning';
-        statusIcon.textContent = '!';
-        statusDesc.textContent = 'AI check failed. Click button for setup.';
-        enableBtn.textContent = 'Enable AI Features (Instructions)';
-        enableBtn.disabled = false;
-        console.error('AI check failed:', error.message, error.name);
-    }
-}
+/**
+ * Setup page - Check AI availability and guide users
+ */
 
 document.addEventListener('DOMContentLoaded', () => {
-    // Enable AI features button
-    document.getElementById('enableAIBtn').addEventListener('click', () => {
-        // Open Chrome flags pages in new tabs
-        chrome.tabs.create({
-            url: 'chrome://flags/#prompt-api-for-gemini-nano' // Correct flag name
-        });
-        chrome.tabs.create({
-            url: 'chrome://flags/#optimization-guide-on-device-model' // Second required flag
-        });
-        // Provide clearer instructions in an alert
-        alert(
-            "Two flag pages should have opened.\n\n" +
-            "Please **ENABLE** BOTH flags:\n" +
-            "1. `#prompt-api-for-gemini-nano`\n" +
-            "2. `#optimization-guide-on-device-model`\n\n" +
-            "After enabling BOTH, click the **'Relaunch'** button at the bottom of the flags page.\n\n" +
-            "**IMPORTANT:** Make sure Chrome closes completely and restarts."
-            );
-    });
+  const aiStatusCheck = document.getElementById('aiStatusCheck');
 
-    // Open side panel button
-    document.getElementById('openSidePanelBtn').addEventListener('click', () => {
-        // Try to open side panel, handle potential errors
+  async function checkAIAvailability() {
+    aiStatusCheck.innerHTML = '<div class="loader"></div><p>Checking AI availability...</p>';
+
+    // Check if API exists
+    if (typeof globalThis.ai === 'undefined' ||
+        typeof globalThis.ai.languageModel === 'undefined') {
+      aiStatusCheck.classList.remove('success');
+      aiStatusCheck.classList.add('error');
+      aiStatusCheck.innerHTML = `
+        <h3>❌ Chrome AI API Not Available</h3>
+        <p>The Prompt API (Gemini Nano) is not detected.</p>
+        <h4>Required Steps:</h4>
+        <ol>
+          <li><strong>Chrome Version:</strong> Ensure you're using Chrome 127 or higher (Dev/Canary recommended)</li>
+          <li><strong>Enable Flags:</strong> Navigate to <code>chrome://flags</code> and enable:
+            <ul>
+              <li><code>#prompt-api-for-gemini-nano</code> → <strong>Enabled</strong></li>
+              <li><code>#optimization-guide-on-device-model</code> → <strong>Enabled BypassPerfRequirement</strong></li>
+            </ul>
+          </li>
+          <li><strong>Restart Chrome</strong> completely after enabling flags</li>
+        </ol>
+        <p><a href="chrome://flags" target="_blank">Open chrome://flags</a></p>
+      `;
+      return;
+    }
+
+    try {
+      // Check availability status
+      const availability = await globalThis.ai.languageModel.availability();
+
+      if (availability === 'readily') {
+        // Model is ready
+        aiStatusCheck.classList.remove('error');
+        aiStatusCheck.classList.add('success');
+        aiStatusCheck.innerHTML = `
+          <h3>✅ Chrome AI API Available!</h3>
+          <p><strong>Status:</strong> Gemini Nano is ready to use</p>
+          <p>All AI features are fully functional. You can start using Spectrum AI Pro Enhanced.</p>
+        `;
+
+        // Get model parameters
         try {
-            chrome.sidePanel.open({ windowId: chrome.windows.WINDOW_ID_CURRENT });
-            // Close setup page *only* if side panel opens successfully
-             setTimeout(() => window.close(), 100); // Small delay before closing
-        } catch (e) {
-            console.error("Could not open side panel:", e);
-            alert("Could not automatically open side panel. Please click the extension icon in your toolbar.");
+          const params = await globalThis.ai.languageModel.params();
+          aiStatusCheck.innerHTML += `
+            <h4>Model Parameters:</h4>
+            <ul>
+              <li>Temperature: ${params.defaultTemperature} (max: ${params.maxTemperature})</li>
+              <li>Top-K: ${params.defaultTopK} (max: ${params.maxTopK})</li>
+            </ul>
+          `;
+        } catch (paramError) {
+          console.error('Error getting params:', paramError);
         }
-    });
 
-    // Initialize AI check on load
-    checkAIAvailability();
+      } else if (availability === 'after-download') {
+        // Model needs download
+        aiStatusCheck.classList.remove('error');
+        aiStatusCheck.classList.add('success');
+        aiStatusCheck.innerHTML = `
+          <h3>⏳ Chrome AI API Available (Download Required)</h3>
+          <p><strong>Status:</strong> Gemini Nano needs to be downloaded (~1.5GB)</p>
+          <p>The model will automatically download when you first use an AI feature.</p>
+          <p><strong>Note:</strong> Requires user interaction (click) and may take 5-10 minutes depending on connection speed.</p>
+        `;
 
-    // Re-check when the page gains focus
-    window.addEventListener('focus', checkAIAvailability);
-    // Also re-check periodically
-    setInterval(checkAIAvailability, 5000); // Check every 5 seconds
+      } else {
+        // Not available
+        aiStatusCheck.classList.remove('success');
+        aiStatusCheck.classList.add('error');
+        aiStatusCheck.innerHTML = `
+          <h3>⚠️ Chrome AI API Status: ${availability}</h3>
+          <p>The Prompt API is detected but not available on this device.</p>
+          <h4>Troubleshooting:</h4>
+          <ol>
+            <li>Ensure Chrome flags are enabled (see above)</li>
+            <li>Restart Chrome completely</li>
+            <li>Check device compatibility (requires modern hardware)</li>
+            <li>Try Chrome Dev or Canary for better support</li>
+          </ol>
+          <p><a href="https://developer.chrome.com/docs/ai/built-in" target="_blank">Learn more about Chrome AI requirements</a></p>
+        `;
+      }
+
+    } catch (error) {
+      aiStatusCheck.classList.remove('success');
+      aiStatusCheck.classList.add('error');
+      aiStatusCheck.innerHTML = `
+        <h3>❌ Error Checking AI Availability</h3>
+        <p><strong>Error:</strong> ${error.message}</p>
+        <p>Please ensure Chrome flags are enabled and restart your browser.</p>
+        <p><a href="chrome://flags" target="_blank">Open chrome://flags</a></p>
+      `;
+    }
+  }
+
+  checkAIAvailability();
 });
-
-console.log("Setup script loaded (v3.2)");

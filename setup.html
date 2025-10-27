@@ -1,373 +1,249 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Spectrum AI Pro Enhanced - Setup</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Spectrum AI Pro Enhanced - Setup</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
 
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: #1a202c;
-            color: #e5e7eb;
-            line-height: 1.6;
-            min-height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 20px;
-        }
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      padding: 2rem;
+      color: #333;
+    }
 
-        .setup-container {
-            max-width: 600px;
-            width: 100%;
-            background: #2d3748;
-            border-radius: 12px;
-            border: 1px solid #374151;
-            overflow: hidden;
-            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
-        }
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+      background: white;
+      border-radius: 16px;
+      padding: 3rem;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+    }
 
-        .setup-header {
-            background: linear-gradient(135deg, #3b82f6 0%, #6366f1 100%);
-            padding: 40px 30px;
-            text-align: center;
-            color: white;
-        }
+    h1 {
+      color: #667eea;
+      margin-bottom: 0.5rem;
+      font-size: 2.5rem;
+    }
 
-        .setup-title {
-            font-size: 28px;
-            font-weight: 700;
-            margin: 0 0 12px 0;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 12px;
-        }
+    .subtitle {
+      color: #666;
+      margin-bottom: 2rem;
+      font-size: 1.1rem;
+    }
 
-        .setup-subtitle {
-            font-size: 16px;
-            opacity: 0.9;
-            margin: 0;
-        }
+    .section {
+      margin-bottom: 2.5rem;
+    }
 
-        .setup-content {
-            padding: 40px 30px;
-        }
+    h2 {
+      color: #444;
+      margin-bottom: 1rem;
+      font-size: 1.5rem;
+      border-bottom: 2px solid #667eea;
+      padding-bottom: 0.5rem;
+    }
 
-        .setup-section {
-            margin-bottom: 32px;
-        }
+    .status-box {
+      padding: 1.5rem;
+      border-radius: 8px;
+      margin-top: 1rem;
+    }
 
-        .setup-section h3 {
-            font-size: 20px;
-            font-weight: 600;
-            color: #e5e7eb;
-            margin-bottom: 16px;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
+    .status-box.success {
+      background: #d4edda;
+      border-left: 4px solid #28a745;
+    }
 
-        .setup-section p {
-            color: #9ca3af;
-            margin-bottom: 16px;
-            font-size: 14px;
-        }
+    .status-box.error {
+      background: #f8d7da;
+      border-left: 4px solid #dc3545;
+    }
 
-        .feature-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 16px;
-            margin-bottom: 24px;
-        }
+    .status-box h3 {
+      margin-bottom: 0.5rem;
+      color: inherit;
+    }
 
-        .feature-card {
-            background: #1a202c;
-            padding: 20px;
-            border-radius: 8px;
-            border: 1px solid #374151;
-            transition: all 0.2s;
-        }
+    .status-box p {
+      margin-bottom: 0.75rem;
+      line-height: 1.6;
+    }
 
-        .feature-card:hover {
-            border-color: #3b82f6;
-            transform: translateY(-2px);
-        }
+    .status-box ul, .status-box ol {
+      margin-left: 1.5rem;
+      margin-top: 0.5rem;
+    }
 
-        .feature-card h4 {
-            font-size: 16px;
-            font-weight: 600;
-            color: #e5e7eb;
-            margin-bottom: 8px;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
+    .status-box li {
+      margin-bottom: 0.5rem;
+      line-height: 1.6;
+    }
 
-        .feature-card p {
-            font-size: 13px;
-            color: #9ca3af;
-            margin: 0;
-        }
+    code {
+      background: #f4f4f4;
+      padding: 0.2rem 0.4rem;
+      border-radius: 4px;
+      font-family: 'Courier New', monospace;
+      color: #d63384;
+    }
 
-        .requirements-list {
-            list-style: none;
-            padding: 0;
-        }
+    a {
+      color: #667eea;
+      text-decoration: none;
+      font-weight: 600;
+    }
 
-        .requirements-list li {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            padding: 12px 0;
-            border-bottom: 1px solid #374151;
-        }
+    a:hover {
+      text-decoration: underline;
+    }
 
-        .requirements-list li:last-child {
-            border-bottom: none;
-        }
+    .loader {
+      border: 3px solid #f3f3f3;
+      border-top: 3px solid #667eea;
+      border-radius: 50%;
+      width: 30px;
+      height: 30px;
+      animation: spin 1s linear infinite;
+      margin: 0 auto 1rem;
+    }
 
-        .requirement-icon {
-            width: 20px;
-            height: 20px;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 12px;
-            font-weight: bold;
-            flex-shrink: 0;
-        }
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
 
-        .requirement-icon.check {
-            background: #10b981;
-            color: white;
-        }
+    .info-box {
+      background: #e7f3ff;
+      border-left: 4px solid #2196F3;
+      padding: 1rem;
+      margin: 1rem 0;
+      border-radius: 4px;
+    }
 
-        .requirement-icon.warning {
-            background: #f59e0b;
-            color: white;
-        }
+    .warning-box {
+      background: #fff3cd;
+      border-left: 4px solid #ffc107;
+      padding: 1rem;
+      margin: 1rem 0;
+      border-radius: 4px;
+    }
 
-        .requirement-icon.checking {
-            background: #3b82f6;
-            color: white;
-            animation: spin 1s linear infinite;
-        }
+    .step-list {
+      counter-reset: step-counter;
+      list-style: none;
+      padding-left: 0;
+    }
 
-        .requirement-text {
-            flex: 1;
-            font-size: 14px;
-            color: #e5e7eb;
-        }
+    .step-list li {
+      counter-increment: step-counter;
+      position: relative;
+      padding-left: 3rem;
+      margin-bottom: 1.5rem;
+    }
 
-        .requirement-desc {
-            font-size: 12px;
-            color: #9ca3af;
-            margin-top: 2px;
-        }
-
-        .action-buttons {
-            display: flex;
-            gap: 12px;
-            justify-content: center;
-            margin-top: 32px;
-        }
-
-        .btn {
-            padding: 12px 24px;
-            border: none;
-            border-radius: 8px;
-            font-size: 14px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.2s;
-            text-decoration: none;
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .btn-primary {
-            background: linear-gradient(135deg, #3b82f6 0%, #6366f1 100%);
-            color: white;
-        }
-
-        .btn-primary:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 8px 20px rgba(59, 130, 246, 0.3);
-        }
-
-        .btn-primary:disabled {
-            opacity: 0.6;
-            cursor: not-allowed;
-            transform: none;
-            box-shadow: none;
-        }
-
-        .btn-secondary {
-            background: #374151;
-            color: #e5e7eb;
-            border: 1px solid #4b5563;
-        }
-
-        .btn-secondary:hover {
-            background: #4b5563;
-            transform: translateY(-1px);
-        }
-
-        .status-indicator {
-            display: inline-block;
-            padding: 4px 12px;
-            border-radius: 12px;
-            font-size: 12px;
-            font-weight: 500;
-            margin-left: 8px;
-        }
-
-        .status-ready {
-            background: rgba(16, 185, 129, 0.2);
-            color: #34d399;
-        }
-
-        .status-checking {
-            background: rgba(245, 158, 11, 0.2);
-            color: #fbbf24;
-        }
-
-        .status-error {
-            background: rgba(239, 68, 68, 0.2);
-            color: #f87171;
-        }
-
-        .footer {
-            padding: 20px 30px;
-            background: #1a202c;
-            border-top: 1px solid #374151;
-            text-align: center;
-            font-size: 12px;
-            color: #6b7280;
-        }
-
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
-
-        @media (max-width: 640px) {
-            .feature-grid {
-                grid-template-columns: 1fr;
-            }
-
-            .action-buttons {
-                flex-direction: column;
-            }
-
-            .setup-content {
-                padding: 24px 20px;
-            }
-        }
-    </style>
-<base target="_blank">
+    .step-list li::before {
+      content: counter(step-counter);
+      position: absolute;
+      left: 0;
+      top: 0;
+      background: #667eea;
+      color: white;
+      width: 2rem;
+      height: 2rem;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: bold;
+    }
+  </style>
 </head>
 <body>
-    <div class="setup-container">
-        <div class="setup-header">
-            <h1 class="setup-title">
-                <span>✨</span>
-                Spectrum AI Pro
-            </h1>
-            <p class="setup-subtitle">Professional AI-Powered Web Analysis & Workflow Automation</p>
-        </div>
+  <div class="container">
+    <h1>🌈 Spectrum AI Pro Enhanced</h1>
+    <p class="subtitle">Setup & Configuration</p>
 
-        <div class="setup-content">
-            <div class="setup-section">
-                <h3><span>🚀</span> Getting Started</h3>
-                <p>Welcome to Spectrum AI Pro Enhanced! This powerful extension provides comprehensive web analysis, intelligent tab organization, and automated workflow documentation using advanced AI technology.</p>
-
-                <div class="feature-grid">
-                    <div class="feature-card">
-                        <h4><span>🎯</span> Smart Auditing</h4>
-                        <p>12-point comprehensive website analysis with AI-powered insights and recommendations</p>
-                    </div>
-                    <div class="feature-card">
-                        <h4><span>📂</span> Tab Intelligence</h4>
-                        <p>AI-powered tab grouping with contextual actions and content analysis</p>
-                    </div>
-                    <div class="feature-card">
-                        <h4><span>📝</span> Workflow Scribe</h4>
-                        <p>Automated workflow documentation with step-by-step guides and templates</p>
-                    </div>
-                    <div class="feature-card">
-                        <h4><span>🕒</span> Enhanced History</h4>
-                        <p>Comprehensive audit history management with search and export capabilities</p>
-                    </div>
-                </div>
-            </div>
-
-            <div class="setup-section">
-                <h3><span>⚙️</span> Requirements & Setup</h3>
-                <p>To ensure optimal performance, please verify the following requirements:</p>
-
-                <ul class="requirements-list">
-                    <li>
-                        <span class="requirement-icon check">✓</span>
-                        <div>
-                            <div class="requirement-text">Google Chrome Browser</div>
-                            <div class="requirement-desc">Latest version (127+) recommended</div>
-                        </div>
-                    </li>
-                    <li>
-                        <span class="requirement-icon warning" id="aiStatusIcon">!</span>
-                        <div>
-                            <div class="requirement-text">AI Features Enabled</div>
-                            <div class="requirement-desc" id="aiStatusDesc">Required for analysis and contextual actions</div>
-                        </div>
-                    </li>
-                    <li>
-                        <span class="requirement-icon check">✓</span>
-                        <div>
-                            <div class="requirement-text">Extension Permissions</div>
-                            <div class="requirement-desc">Active tab, storage, and scripting permissions</div>
-                        </div>
-                    </li>
-                </ul>
-            </div>
-
-            <div class="setup-section">
-                <h3><span>🎮</span> How to Use</h3>
-                <p>Get started with these simple steps:</p>
-                <ol style="padding-left: 20px; color: #9ca3af; font-size: 14px; line-height: 1.8;">
-                    <li><strong>Pin the Extension:</strong> Click the puzzle piece icon and pin Spectrum AI Pro for easy access</li>
-                    <li><strong>Open Side Panel:</strong> Click the extension icon or use Ctrl+Shift+A to open the main interface</li>
-                    <li><strong>Run Your First Audit:</strong> Navigate to any website and click "🚀 Run 12-Point Audit"</li>
-                    <li><strong>Explore Features:</strong> Try tab organization, workflow recording, and history management</li>
-                </ol>
-            </div>
-
-            <div class="action-buttons">
-                <button class="btn btn-primary" id="enableAIBtn">
-                    <span>🤖</span>
-                    Enable AI Features
-                </button>
-                <button class="btn btn-secondary" id="openSidePanelBtn">
-                    <span>🚀</span>
-                    Open Side Panel
-                </button>
-            </div>
-        </div>
-
-        <div class="footer">
-            <p>Spectrum AI Pro - Professional AI-Powered Web Analysis</p>
-            <p>Version 3.0 | Built with on-device AI</p>
-        </div>
+    <div class="section">
+      <h2>🤖 AI Status</h2>
+      <div id="aiStatusCheck" class="status-box">
+        <div class="loader"></div>
+        <p>Checking AI availability...</p>
+      </div>
     </div>
 
-    <script src="setup.js"></script>
+    <div class="section">
+      <h2>📋 Setup Instructions</h2>
+      <p>To enable the full AI capabilities of Spectrum AI Pro Enhanced with Gemini Nano:</p>
+
+      <ol class="step-list">
+        <li>
+          <strong>Chrome Version Requirements</strong><br>
+          Use Chrome 127 or higher. For best results, use Chrome Dev or Canary:
+          <ul>
+            <li><a href="https://www.google.com/chrome/dev/" target="_blank">Chrome Dev</a></li>
+            <li><a href="https://www.google.com/chrome/canary/" target="_blank">Chrome Canary</a></li>
+          </ul>
+        </li>
+
+        <li>
+          <strong>Enable Chrome Flags</strong><br>
+          Navigate to <a href="chrome://flags" target="_blank"><code>chrome://flags</code></a> and enable these two flags:
+          <ul>
+            <li><code>#prompt-api-for-gemini-nano</code> → Set to <strong>"Enabled"</strong></li>
+            <li><code>#optimization-guide-on-device-model</code> → Set to <strong>"Enabled BypassPerfRequirement"</strong></li>
+          </ul>
+        </li>
+
+        <li>
+          <strong>Restart Chrome</strong><br>
+          Completely quit and restart Chrome after enabling the flags.
+        </li>
+
+        <li>
+          <strong>First-Time Model Download</strong><br>
+          The first time you use an AI feature, Gemini Nano (~1.5GB) will download automatically. This requires:
+          <ul>
+            <li>User interaction (clicking an AI button)</li>
+            <li>Good internet connection</li>
+            <li>5-10 minutes depending on speed</li>
+          </ul>
+        </li>
+      </ol>
+
+      <div class="warning-box">
+        <strong>⚠️ Note:</strong> The Prompt API with Gemini Nano requires specific hardware capabilities. If your device is incompatible, AI features won't work even with flags enabled.
+      </div>
+    </div>
+
+    <div class="section">
+      <h2>🚀 Features Overview</h2>
+      <ul>
+        <li><strong>Auditor:</strong> 12-point website analysis with AI-powered insights</li>
+        <li><strong>Organizer:</strong> Intelligent tab grouping and management</li>
+        <li><strong>Scribe:</strong> Automated workflow documentation</li>
+        <li><strong>AI Chat:</strong> Context-aware assistant for each module</li>
+      </ul>
+    </div>
+
+    <div class="section">
+      <h2>🔗 Resources</h2>
+      <ul>
+        <li><a href="https://developer.chrome.com/docs/ai/built-in" target="_blank">Chrome Built-in AI Documentation</a></li>
+        <li><a href="https://developer.chrome.com/docs/ai/built-in-apis" target="_blank">Prompt API Reference</a></li>
+        <li><a href="chrome://flags" target="_blank">Chrome Flags</a></li>
+      </ul>
+    </div>
+  </div>
+
+  <script src="setup.js"></script>
 </body>
 </html>

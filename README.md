@@ -67,19 +67,22 @@ Content Scripts: Efficient content script injection
 Background Processing: Optimized background task handling
 Installation and Setup
 Prerequisites
-Google Chrome browser
-AI features enabled in Chrome flags (chrome://flags/#optimization-guide-on-device-model)
+Google Chrome browser (Version 127 or higher recommended for Gemini Nano support)
+AI features enabled in Chrome flags (chrome://flags/#prompt-api-for-gemini-nano and chrome://flags/#optimization-guide-on-device-model)
+
 Installation Steps
 Download the extension files
 Open Chrome and navigate to chrome://extensions/
 Enable "Developer mode"
 Click "Load unpacked" and select the extension directory
 The extension icon should appear in your toolbar
+
 Configuration
 Click the extension icon to open the side panel
-Navigate to Settings (⚙️ icon)
+Navigate to Settings (⚙️ icon) or the dedicated Setup page.
 Configure AI features and display preferences
 Enable contextual actions and auto-grouping as desired
+
 Usage Guide
 Running an Audit
 Navigate to any website you want to analyze
@@ -88,114 +91,139 @@ Click the "🚀 Run 12-Point Audit" button
 Wait for the AI analysis to complete
 Review the interactive dashboard and detailed report
 Use the chat feature to ask specific questions
+
 Organizing Tabs
 Open multiple tabs you want to organize
 Switch to the "📂 Organizer" tab
 Click "📂 Analyze & Group Tabs"
 Review the suggested groups and confidence scores
-Use contextual actions for deeper analysis
+Use contextual actions for deeper analysis (e.g., Summarize, Extract Data, Find Contacts, Analyze Content)
 Create groups or enable auto-grouping
+
 Recording Workflows
 Switch to the "📝 Scribe" tab
 Click "🎬 Start Recording"
 Navigate through your workflow, clicking elements as needed
 Click "⏹️ Stop & Generate" when complete
 Review the generated guide and make adjustments
+Use AI Tools for "🔧 Generalize Workflow" or "💡 Analyze & Optimize"
 Export as PDF or share with others
+
 Managing History
 Switch to the "🕒 History" tab
 View your previous audit reports
 Use the search function to find specific reports
 Export your history for backup
 Load previous reports for reference
+Import history from a JSON file
+Clear all history
+
 Keyboard Shortcuts
 Ctrl+Shift+A (Windows) / Command+Shift+A (Mac): Run comprehensive audit
 Ctrl+Shift+S (Windows) / Command+Shift+S (Mac): Start Scribe recording
 Ctrl+Shift+O (Windows) / Command+Shift+O (Mac): Organize tabs with AI
+
 Settings and Customization
 AI Configuration
 Enable/disable advanced AI features
 Configure real-time analysis
 Set confidence thresholds
+
 Display Options
 Enable/disable animations
 Toggle dark mode
 Adjust font sizes and layouts
+
 Export Options
 Configure default export formats
 Set up automatic backups
 Customize report templates
+
 Troubleshooting
 Common Issues
 AI Features Not Available
-Ensure AI features are enabled in Chrome flags
+Ensure AI features are enabled in Chrome flags (<code>chrome://flags/#prompt-api-for-gemini-nano</code> and <code>chrome://flags/#optimization-guide-on-device-model</code>)
 Check that your Chrome version supports the required APIs
-Verify internet connection for AI model downloads
+Verify internet connection for AI model downloads (if applicable for initial model download)
+
 Extension Not Loading
 Refresh the extension page (chrome://extensions/)
 Check for conflicting extensions
 Verify all files are present in the extension directory
+
 Performance Issues
 Close unnecessary tabs before running analysis
 Disable animations in settings for better performance
 Check available system memory
+
 Getting Help
 Check the browser console for error messages
 Review the troubleshooting section in settings
 Report issues through the extension feedback system
+
 Privacy and Security
 Data Handling
-All analysis is performed locally on your device
-No data is sent to external servers
-Audit reports are stored locally in your browser
-You have full control over your data
+All analysis is performed locally on your device using Gemini Nano.
+No sensitive data is sent to external servers.
+Audit reports are stored locally in your browser.
+You have full control over your data.
+
 Permissions
 Active Tab: Required for content analysis
 Storage: Needed to save audit reports and settings
 Scripting: Required for content script injection
 Tab Groups: Needed for tab organization features
+
 Security Features
 Content Security Policy compliance
 Secure communication between components
-No external API calls or data transmission
+No external API calls or data transmission for core AI features.
 Regular security updates and patches
+
 Development
 Contributing
 Fork the repository
 Create a feature branch
 Submit a pull request with detailed description
+
 Building from Source
 Clone the repository
 Install dependencies (if any)
 Make your changes
 Test thoroughly
 Build and package for distribution
+
 Code Style
 Follow ES6+ JavaScript standards
 Use meaningful variable and function names
 Include comprehensive comments
 Maintain consistent formatting
+
 License
 This project is licensed under the MIT License. See the LICENSE file for details.
+
 Acknowledgments
 Chrome Extension APIs
-AI Language Model APIs
+AI Language Model APIs (Gemini Nano)
 Open source community contributions
 User feedback and suggestions
+
 Changelog
-Version 2.0 (Enhanced)
+Version 3.1 (Enhanced)
 Complete UI/UX overhaul with modern design
-Enhanced AI capabilities with contextual analysis
-Intelligent tab organizer with confidence scoring
-Advanced Scribe workflow documentation
-Comprehensive history management
+Enhanced AI capabilities with contextual analysis via Gemini Nano
+Intelligent tab organizer with confidence scoring and contextual AI actions
+Advanced Scribe workflow documentation with AI-generated instructions and optimizations
+Comprehensive history management with import/export functionality
 Performance optimizations and bug fixes
 Full accessibility and responsive design support
+
 Previous Versions
 Initial release with basic audit functionality
 Tab organization and workflow recording features
 Bug fixes and performance improvements
-Spectrum AI Pro Enhanced - Empowering users with intelligent web analysis and workflow automation through advanced AI technolog
+
+Spectrum AI Pro Enhanced - Empowering users with intelligent web analysis and workflow automation through advanced AI technology.
 
 Okay, let's craft a "go crazy" prompt designed to inspire a powerful AI (like me, Gemini, or another capable model) to generate the complete foundation for your Spectrum AI Pro Enhanced Chrome extension. This prompt includes the vision, detailed features, technical constraints, and desired output, pushing for innovation while maintaining structure.
 

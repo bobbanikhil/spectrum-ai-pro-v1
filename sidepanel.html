@@ -10,7 +10,7 @@
     <link rel="stylesheet" href="sidepanel.css">
 </head>
 <body>
-    <div class="app-container">
+    <div class="app-container view-split">
         <header class="app-header">
             <div class="header-content">
                 <div class="logo-section">
@@ -20,6 +20,11 @@
                 <button id="settingsBtn" class="icon-button" title="Settings">⚙️</button>
             </div>
         </header>
+
+        <div id="aiWarningBanner" class="status-message warning" style="display: none; margin: 10px 20px; justify-content: space-between; align-items: center;">
+            <span id="aiWarningText">AI features are unavailable. Check flags.</span>
+            <button id="aiWarningDismiss" style="background:none; border:none; color:var(--text-primary); cursor:pointer; font-size: 20px; padding: 0 4px;">&times;</button>
+        </div>
 
         <div class="view-controls">
             <button class="view-mode-btn active" data-mode="split" aria-label="Split View">
@@ -32,8 +37,8 @@
                 💬 Chat Only
             </button>
         </div>
-
-        <div class="content-wrapper split-view">
+        
+        <div class="content-wrapper">
             <aside class="control-panel">
                 <nav class="tab-navigation" role="tablist">
                     <button class="tab-link active" data-tab="auditor" role="tab" aria-selected="true">
@@ -53,32 +58,21 @@
                 <div class="tab-panels">
                     <div id="auditor" class="tab-content active" role="tabpanel">
                         <div class="panel-section">
-                            <h3 class="section-title">💬 AI Assistant</h3>
+                            <h3 class="section-title">Website Analysis</h3>
                             <button id="auditButton" class="primary-button">
                                 🚀 Run 12-Point Audit
                             </button>
-
                             <div id="aiActionsPanel" class="ai-actions" style="display: none;">
                                 <button id="summarizeButton" class="ai-action-button">📋 Summarize</button>
                                 <button id="proofreadButton" class="ai-action-button">✏️ Proofread</button>
                                 <button id="rewriteTitleButton" class="ai-action-button">💡 Titles</button>
                             </div>
-
-                            <div id="auditStatus" class="status-message info" style="display: none;">
+                            <div id="auditStatus" class="status-message info" style="display: none; align-items: center; gap: 10px;">
                                 <span id="auditStatusText">Ready to analyze</span>
                             </div>
                             <div id="auditLoader" class="loader" style="display: none;"></div>
                         </div>
-
-                        <div id="auditResultsContainer" class="audit-results-container" style="display: none;">
-                            <h3 class="section-title">Detailed Audit Report</h3>
-                            <div id="auditResultsContent" class="audit-results-content">
-                                <!-- Audit results will be dynamically loaded here -->
-                                <p>Run an audit to see detailed analysis across 12 key areas.</p>
-                            </div>
-                        </div>
-
-                        <div id="auditorChatContainer" class="chat-container">
+                        <div id="auditorChatContainer" class="chat-container" style="display: flex;">
                             <div id="auditorChatMessages" class="chat-messages"></div>
                             <div class="chat-input-wrapper">
                                 <input type="text" id="auditorChatInput" class="chat-input" placeholder="Ask about the audit...">
@@ -89,26 +83,25 @@
 
                     <div id="organizer" class="tab-content" role="tabpanel" hidden>
                         <div class="panel-section">
-                            <h3 class="section-title">📂 Tab Organizer</h3>
+                            <h3 class="section-title">Tab Organizer</h3>
                             <button id="organizeTabsButton" class="primary-button">
                                 📂 Analyze & Group Tabs
                             </button>
-
-                            <div id="organizerActionsPanel" class="ai-actions" style="display: none;">
-                                <h3 class="section-title" style="margin-top: 16px;">Contextual AI Actions</h3>
-                                <p id="organizerActionContext" style="font-size: 12px; color: var(--text-secondary); margin-bottom: 12px;">Select a group to enable actions.</p>
-                                <button id="summarizeGroupButton" class="ai-action-button" disabled>📄 Create Summary</button>
-                                <button id="extractDataButton" class="ai-action-button" disabled>📊 Extract Key Data</button>
-                                <button id="findContactsButton" class="ai-action-button" disabled>👤 Find Contacts</button>
-                                <button id="analyzeContentButton" class="ai-action-button" disabled>🔬 Analyze Content</button>
-                            </div>
-
-                            <div id="organizerStatus" class="status-message info" style="display: none;">
-                                <span id="organizerStatusText">Ready to organize tabs</span>
+                            <div id="organizerStatus" class="status-message info" style="display: none; align-items: center; gap: 10px;">
+                                <span id="organizerStatusText">Ready to organize</span>
                             </div>
                             <div id="organizerLoader" class="loader" style="display: none;"></div>
                         </div>
-
+                        <div id="organizerActionsPanel" class="ai-actions panel-section" style="display: none;">
+                            <h3 class="section-title" style="margin-top: 16px;">Contextual AI Actions</h3>
+                            <p id="organizerActionContext" style="font-size: 12px; color: var(--text-secondary); margin-bottom: 12px;">Select a group below to enable actions.</p>
+                            <button id="summarizeGroupButton" class="ai-action-button" disabled>📄 Create Summary</button>
+                            <button id="extractDataButton" class="ai-action-button" disabled>📊 Extract Key Data</button>
+                            <button id="findContactsButton" class="ai-action-button" disabled>👤 Find Contacts</button>
+                            <button id="analyzeContentButton" class="ai-action-button" disabled>🔬 Analyze Content</button>
+                            <button id="compareGroupButton" class="ai-action-button" disabled>⚖️ Compare Content</button>
+                            <button id="predictGroupButton" class="ai-action-button" disabled>🔮 Predict Trends</button>
+                        </div>
                         <div id="organizerChatContainer" class="chat-container" style="display: none;">
                             <div id="organizerChatMessages" class="chat-messages"></div>
                             <div class="chat-input-wrapper">
@@ -120,30 +113,31 @@
 
                     <div id="scribe" class="tab-content" role="tabpanel" hidden>
                         <div class="panel-section">
-                            <h3 class="section-title">📝 Workflow Scribe</h3>
-                            <button id="startScribeButton" class="primary-button">
-                                🎬 Start Recording
-                            </button>
-                            <button id="stopScribeButton" class="secondary-button" style="display: none; background-color: var(--error); color: white; border-color: var(--error-light);">
-                                ⏹️ Stop & Generate
-                            </button>
-
-                            <div id="scribeActionsPanel" class="ai-actions" style="display: none;">
-                                <h3 class="section-title" style="margin-top: 16px;">AI Tools</h3>
-                                <button id="generalizeWorkflowButton" class="ai-action-button">🔧 Generalize Workflow</button>
-                                <button id="scribeAnalyzeButton" class="ai-action-button">💡 Analyze & Optimize</button>
-                                <h3 class="section-title" style="margin-top: 16px;">Export Options</h3>
-                                <button id="scribeExportTextButton" class="ai-action-button">📥 Export as Text (.txt)</button>
-                                <button id="scribeExportJsonButton" class="ai-action-button">📥 Export as JSON</button>
-                                <button id="scribeExportPdfButton" class="ai-action-button">📥 Export as PDF</button>
+                            <h3 class="section-title">Workflow Scribe</h3>
+                             <div style="display: flex; gap: 8px;">
+                                <button id="startScribeButton" class="primary-button">
+                                    🎬 Start Recording
+                                </button>
+                                <button id="stopScribeButton" class="secondary-button" style="display: none; background-color: var(--error); color: white; border-color: var(--error-light); width: auto; flex-shrink: 0;">
+                                    ⏹️ Stop
+                                </button>
                             </div>
+                            <button id="clearScribeButton" class="secondary-button" style="margin-top: 8px;" disabled>🧹 Clear Recording</button>
 
-                            <div id="scribeStatus" class="status-message info" style="display: none;">
+                            <div id="scribeStatus" class="status-message info" style="display: none; align-items: center; gap: 10px;">
                                 <span id="scribeStatusText">Ready to record</span>
                             </div>
                             <div id="scribeLoader" class="loader" style="display: none;"></div>
                         </div>
-
+                        <div id="scribeActionsPanel" class="ai-actions panel-section" style="display: none;">
+                            <h3 class="section-title" style="margin-top: 16px;">AI Tools</h3>
+                            <button id="generalizeWorkflowButton" class="ai-action-button" disabled>🔧 Generalize Workflow</button>
+                            <button id="analyzeWorkflowButton" class="ai-action-button" disabled>💡 Analyze & Optimize</button>
+                            <h3 class="section-title" style="margin-top: 16px;">Export Options</h3>
+                            <button id="exportScribeTxtButton" class="ai-action-button" disabled>📥 Export as Text (.txt)</button>
+                            <button id="exportScribeJsonButton" class="ai-action-button" disabled>📥 Export as JSON</button>
+                            <button id="exportScribePdfButton" class="ai-action-button" disabled>📥 Export as PDF</button>
+                        </div>
                         <div id="scribeChatContainer" class="chat-container" style="display: none;">
                             <div id="scribeChatMessages" class="chat-messages"></div>
                             <div class="chat-input-wrapper">
@@ -158,11 +152,12 @@
                             <h3 class="section-title">🕒 Audit History</h3>
                             <input type="text" id="historySearchInput" class="search-input" placeholder="Search history...">
                             <div style="display: flex; gap: 8px;">
-                                <button id="historyExportButton" class="secondary-button" style="width: 50%;">📥 Export</button>
-                                <button id="historyImportButton" class="secondary-button" style="width: 50%;">📤 Import</button>
+                                <button id="exportHistoryButton" class="secondary-button" style="width: 50%;">📥 Export</button>
+                                <button id="importHistoryButton" class="secondary-button" style="width: 50%;">📤 Import</button>
                             </div>
-                            <input type="file" id="historyImportInput" accept=".json" style="display: none;">
+                            <input type="file" id="importFileInput" accept=".json" style="display: none;">
                             <button id="clearHistoryButton" class="secondary-button" style="background-color: var(--error-light); border-color: var(--error); color: white; margin-top: 8px;">🗑️ Clear All</button>
+                            <div id="historyList" style="margin-top: 16px;"></div>
                         </div>
                     </div>
                 </div>
@@ -183,7 +178,50 @@
                 </div>
 
                 <div id="results" class="results-content">
-                    <div class="placeholder">
+                    <div id="dashboardContainer" class="dashboard-container" style="display: none;">
+                        <div class="dashboard-stats">
+                            <div class="stat-card">
+                                <div class="stat-label">Overall Score</div>
+                                <div class="stat-value" id="overallScore">--</div>
+                                <div class="stat-sublabel">Health: <span id="healthStatus">--</span></div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="stat-label">Errors</div>
+                                <div class="stat-value" id="errorCount">--</div>
+                                <div class="stat-sublabel">Critical Issues</div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="stat-label">Warnings</div>
+                                <div class="stat-value" id="warningCount">--</div>
+                                <div class="stat-sublabel">Minor Issues</div>
+                            </div>
+                        </div>
+                        <div class="dashboard-charts">
+                            <div class="chart-card">
+                                <h3>Health Overview</h3>
+                                <canvas id="healthChart" style="width: 100%; height: 200px;"></canvas>
+                            </div>
+                            <div class="chart-card">
+                                <h3>Issue Breakdown</h3>
+                                <canvas id="issueChart" style="width: 100%; height: 200px;"></canvas>
+                            </div>
+                        </div>
+                        <div class="dashboard-card">
+                            <h3>Detailed Scores (0-10)</h3>
+                            <div class="score-grid" id="detailedScoresGrid"></div>
+                        </div>
+                        <button id="toggleReportButton" class="toggle-report-btn" style="margin-top: 20px; display: none;">View Detailed Report</button>
+                    </div>
+                    
+                    <div id="auditReportContent" class="results-wrapper" style="display: none;"></div>
+
+                    <div id="organizerResults" class="results-wrapper" style="display: block;"></div>
+                    <div id="groupActionResults" class="results-wrapper" style="margin-top: 20px;"></div>
+                    
+                    <div id="scribeResults" class="results-wrapper" style="display: block;"></div>
+                    <div id="scribeActionResults" class="results-wrapper" style="margin-top: 20px;"></div>
+
+                    <div class="placeholder" id="initialPlaceholder" style="display: block;">
                         <div class="placeholder-icon">🔮</div>
                         <h2>Welcome to Spectrum AI Pro</h2>
                         <p>Select an action from the left panel to begin</p>
@@ -196,19 +234,18 @@
                     </div>
                 </div>
             </main>
-        </div>
-    </div>
-
-    <script src="jspdf.umd.min.js"></script>
-    <script src="marked.min.js"></script>
-    <script src="init_marked.js"></script>
-    <script src="sidepanel.js"></script>
-    <div id="modal" class="modal-container" style="display: none;">
+        </div> </div> <div id="modal" class="modal-container" style="display: none;">
         <div class="modal-content">
-            <button id="modalCloseBtn" class="modal-close-btn">X</button>
-            <h3 id="modalTitle"></h3>
+            <button id="modalCloseBtn" class="modal-close-btn">&times;</button>
+            <h3 id="modalTitle">Modal Title</h3>
             <div id="modalBody"></div>
         </div>
     </div>
+
+    <script src="chart.umd.min.js"></script>
+    <script src="jspdf.umd.min.js"></script>
+    <script src="sidepanel-bundle.js"></script>
+
+
 </body>
 </html>

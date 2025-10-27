@@ -1,20 +1,19 @@
 {
   "manifest_version": 3,
   "name": "Spectrum AI Pro Enhanced",
-  "version": "3.1",
-  "description": "Advanced AI-powered web analysis, intelligent tab organization, and workflow documentation with enhanced UI/UX and contextual features.",
+  "version": "3.2.1",
+  "description": "Advanced AI-powered web analysis with Gemini Nano integration",
   "permissions": [
- "sidePanel",
+    "sidePanel",
     "contextMenus",
     "scripting",
     "activeTab",
     "storage",
     "tabs",
     "tabGroups",
-    "languageModel",
-    "tts",
     "notifications",
-    "downloads"
+    "downloads",
+    "ai"
   ],
   "host_permissions": [
     "<all_urls>"
@@ -37,10 +36,10 @@
   "web_accessible_resources": [
     {
       "resources": [
-        "scribe.css",
-        "sidepanel.css",
-        "scribe-content.js",
-        "init_marked.js"
+        "Content Scripts/scribe.css",
+        "Content Scripts/scribe-content.js",
+        "chart.umd.min.js",
+        "jspdf.umd.min.js"
       ],
       "matches": [
         "<all_urls>"
@@ -54,22 +53,22 @@
         "default": "Ctrl+Shift+A",
         "mac": "Command+Shift+A"
       },
-      "description": "Run comprehensive 12-point website audit"
+      "description": "Run website audit (Spectrum AI)"
     },
-    "start-scribe": {
-      "suggested_key": {
-        "default": "Ctrl+Shift+S",
-        "mac": "Command+Shift+S"
-      },
-      "description": "Start Scribe workflow recording"
-    },
-    "organize-tabs": {
-      "suggested_key": {
-        "default": "Ctrl+Shift+O",
-        "mac": "Command+Shift+O"
-      },
-      "description": "Organize tabs with AI intelligence"
-    }
+     "start-scribe": {
+       "suggested_key": {
+         "default": "Ctrl+Shift+S",
+         "mac": "Command+Shift+S"
+       },
+       "description": "Start Scribe recording (Spectrum AI)"
+     },
+     "organize-tabs": {
+       "suggested_key": {
+         "default": "Ctrl+Shift+O",
+         "mac": "Command+Shift+O"
+       },
+       "description": "Organize tabs with AI (Spectrum AI)"
+     }
   },
   "content_security_policy": {
     "extension_pages": "script-src 'self'; object-src 'self'"

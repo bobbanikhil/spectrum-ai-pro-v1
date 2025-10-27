@@ -1,458 +1,220 @@
-/**
- * Spectrum AI Pro V3.4 - Service Worker (Communication & Scribe Fixes)
- * Restores reliable side panel communication via sendMessage.
- * Increases Scribe screenshot debounce to 1000ms.
- */
+// service-worker.js - v3.2.1 Production
+// Handles background tasks, context menus, commands, and message passing.
 
-'use strict';
+// --- Context Menu and Command Setup ---
+chrome.runtime.onInstalled.addListener(async (details) => {
+  console.log('Spectrum AI Service Worker: onInstalled event.', details.reason);
+  // Remove existing menus to prevent duplicates after updates
+  await chrome.contextMenus.removeAll();
 
-// Global state for Scribe
-let isScribeRecording = false;
-let scribeSteps = [];
-let activeScribeTabId = null;
-let lastScreenshotTime = 0; // For screenshot debounce
+  // Create context menus
+  chrome.contextMenus.create({
+    id: 'openSidepanel',
+    title: 'Open Spectrum AI Sidepanel',
+    contexts: ['page', 'selection', 'action']
+  });
+  chrome.contextMenus.create({
+    id: 'runAudit',
+    title: 'Run Page Audit (Spectrum AI)',
+    contexts: ['page', 'action']
+  });
+   chrome.contextMenus.create({
+     id: 'startScribe',
+     title: 'Start Recording Workflow (Spectrum AI)',
+     contexts: ['page', 'action']
+   });
+   chrome.contextMenus.create({
+     id: 'organizeTabs',
+     title: 'Organize Tabs (Spectrum AI)',
+     contexts: ['action']
+   });
 
-// Extension installation
-chrome.runtime.onInstalled.addListener((details) => {
-    console.log('Spectrum AI Pro Enhanced installed/updated:', details.reason);
-    setupContextMenus();
-    if (details.reason === 'install') {
-        // Open setup page on first install
-        chrome.runtime.openOptionsPage();
-    }
-    // Clear any pending actions on update/install - KEEPING THIS as a safety net
-    chrome.storage.local.remove(['pendingAction', 'pendingTabId']);
+  // Open setup page on first install
+  if (details.reason === 'install') {
+    chrome.runtime.openOptionsPage();
+  }
 });
 
-// Context menu setup
-function setupContextMenus() {
-    chrome.contextMenus.removeAll(() => {
-        if (chrome.runtime.lastError) {
-            console.warn("Error removing context menus:", chrome.runtime.lastError.message);
-        }
-        chrome.contextMenus.create({
-            id: 'spectrum-ai-main',
-            title: 'Spectrum AI Pro',
-            contexts: ['page', 'selection', 'link']
-        });
-        chrome.contextMenus.create({
-            id: 'audit-page',
-            parentId: 'spectrum-ai-main',
-            title: 'Audit This Page',
-            contexts: ['page']
-        });
-        chrome.contextMenus.create({
-            id: 'start-scribe',
-            parentId: 'spectrum-ai-main',
-            title: 'Start Scribe Recording',
-            contexts: ['page']
-        });
-        chrome.contextMenus.create({
-            id: 'organize-tabs',
-            parentId: 'spectrum-ai-main',
-            title: 'Organize All Tabs',
-            contexts: ['page']
-        });
-    });
-}
-
-// Context menu click handling
+// --- Context Menu Click Handler ---
 chrome.contextMenus.onClicked.addListener(async (info, tab) => {
-    if (!tab || !tab.windowId) {
-        console.warn("Context menu clicked without valid tab object.");
+    if (!tab || typeof tab.windowId === 'undefined') {
+        console.error("SW: Context menu clicked without a valid tab context.");
         return;
     }
-    switch (info.menuItemId) {
-        case 'audit-page':
-            await triggerSidePanelAction('triggerAudit', tab);
-            break;
-        case 'start-scribe':
-            await triggerSidePanelAction('startScribeRecording', tab);
-            break;
-        case 'organize-tabs':
-            await triggerSidePanelAction('organizeTabs', tab);
-            break;
-    }
-});
-
-// Keyboard shortcut handling
-chrome.commands.onCommand.addListener(async (command) => {
-     try {
-        const tab = await getActiveTab();
-        if (!tab) {
-             console.warn("Command triggered but no active tab found.");
-             return;
-        }
-        switch (command) {
-            case 'run-audit':
-                await triggerSidePanelAction('triggerAudit', tab);
-                break;
-            case 'start-scribe':
-                await triggerSidePanelAction('startScribeRecording', tab);
-                break;
-            case 'organize-tabs':
-                await triggerSidePanelAction('organizeTabs', tab);
-                break;
-        }
-    } catch (error) {
-        console.error("Error handling command:", command, error);
-    }
-});
-
-
-// *** START: RESTORED COMMUNICATION ***
-// Helper to open side panel and THEN send a message
-async function triggerSidePanelAction(action, tab) {
-    console.log(`Attempting to trigger action: ${action}`);
-    if (!tab || !tab.windowId) {
-        console.error(`Cannot trigger action ${action}, invalid tab provided.`);
-        return;
-    }
-    console.log(`Tab ID: ${tab.id}, Window ID: ${tab.windowId}`);
-
     try {
-        // Open the side panel first, while we still have the user gesture context.
         await chrome.sidePanel.open({ windowId: tab.windowId });
-        console.log(`Side panel opened successfully for action "${action}".`);
-
-        // Now set the pending action in storage.
-        await chrome.storage.local.set({ pendingAction: action, pendingTabId: tab.id });
-        console.log(`Pending action '${action}' set in storage.`);
-
+        // Send a message after a short delay to give the side panel time to initialize
+        setTimeout(() => {
+            chrome.runtime.sendMessage({
+                type: 'context-menu-action',
+                action: info.menuItemId // The ID of the clicked menu item
+            }).catch(err => {
+                 // Common error if panel isn't ready or was closed quickly
+                 if (err.message?.includes("Receiving end does not exist")) return;
+                 console.warn("SW: Error sending context menu action (side panel might not be open/ready):", err.message);
+            });
+        }, 300); // 300ms delay, adjust if needed
     } catch (error) {
-        console.error(`Failed to trigger ${action}. Error:`, error);
+        console.error("SW: Error opening side panel or sending message:", error);
     }
-}
-// *** END: RESTORED COMMUNICATION ***
+});
 
+// --- Keyboard Command Handler ---
+chrome.commands.onCommand.addListener(async (command) => {
+  try {
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    if (tab && typeof tab.windowId !== 'undefined') {
+      await chrome.sidePanel.open({ windowId: tab.windowId });
+       // Send a message after a delay
+       setTimeout(() => {
+         chrome.runtime.sendMessage({
+           type: 'keyboard-command',
+           command: command // The command name from manifest.json
+         }).catch(err => {
+              if (err.message?.includes("Receiving end does not exist")) return;
+              console.warn("SW: Error sending keyboard command (side panel might not be open/ready):", err.message);
+         });
+       }, 300);
+    } else {
+        console.error("SW: Keyboard command triggered without an active tab.");
+    }
+  } catch(error) {
+     console.error("SW: Error handling command:", command, error);
+  }
+});
 
-// Main message listener
-chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-    const senderOrigin = sender.url || `extension context ID ${sender.id}`;
-    console.log(`Service Worker received message: ${request.action} from ${senderOrigin}`);
+// --- Central Message Listener ---
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  // Use async immediately to handle promises and keep channel open
+  (async () => {
+    try {
+      console.log(`SW: Received message type: ${message?.type} from ${sender.tab ? 'tab ' + sender.tab.id : 'extension'}`);
 
-    let isAsync = false; // Flag for async responses
+      switch (message?.type) {
+        case 'get-tab-content':
+          if (!message.tabId) throw new Error("Missing tabId for get-tab-content");
+          await handleGetTabContent(message.tabId, sendResponse);
+          break;
 
-    // Use a switch statement for clarity
-    switch (request.action) {
-        case 'getTabGroupContent':
-            isAsync = true;
-            handleGetTabGroupContent(request.tabIds)
-                .then(content => sendResponse({ combinedContent: content }))
-                .catch(e => sendResponse({ error: e.message }));
-            break;
+        case 'create-tab-group':
+          if (!message.tabIds || !message.groupName) throw new Error("Missing tabIds or groupName for create-tab-group");
+          await handleCreateTabGroup(message.tabIds, message.groupName, sendResponse);
+          break;
 
-        case 'startScribeRecording':
-            isAsync = true;
-            (async () => {
-                const tabForScribe = sender.tab || await getActiveTab();
-                if (tabForScribe) {
-                     await handleStartScribe(tabForScribe);
-                     sendResponse({ success: true });
-                } else {
-                     console.error("Cannot start Scribe: No active tab found.");
-                     sendResponse({ success: false, error: "No active tab found." });
-                }
-            })();
-            break;
+        case 'scribe-click': // From scribe-content.js
+           if (!message.payload) throw new Error("Missing payload for scribe-click");
+           // Forward to sidepanel if it's open
+           chrome.runtime.sendMessage({
+               type: 'scribe-click-captured',
+               data: message.payload,
+               tabId: sender.tab?.id
+           }).catch(err => {
+              if (err.message?.includes("Receiving end does not exist")) {
+                 console.log("SW: Scribe click received, but sidepanel not open.");
+                 // Optionally, stop the content script here if needed
+              } else {
+                 console.warn("SW: Error forwarding scribe click to sidepanel:", err.message);
+              }
+           });
+           sendResponse({ success: true }); // Acknowledge receipt
+           break;
 
-        // *** START: RESTORED SCRIBE STOP COMMUNICATION ***
-        case 'stopScribeRecording':
-            isAsync = true;
-            handleStopScribe() // This now sends its own message when done
-                .then(() => sendResponse({ success: true })) // Acknowledge stop *request* received
-                .catch(e => sendResponse({ success: false, error: e.message }));
-            break;
-        // *** END: RESTORED SCRIBE STOP COMMUNICATION ***
-
-        case 'logScribeClick':
-            isAsync = true; // logScribeStep is async due to screenshot
-             (async () => {
-                if (isScribeRecording) {
-                    await logScribeStep('Click', request.details, request.screenshotDataUrl);
-                }
-                sendResponse({ success: true }); // Acknowledge receipt
-            })();
-            break;
-
-        case 'captureVisibleTab':
-            isAsync = true;
-            (async () => {
-                const screenshotDataUrl = await captureScreenshot();
-                sendResponse({ screenshotDataUrl: screenshotDataUrl });
-            })();
-            break;
-
-        // Note: 'runQuickAudit' is handled by 'triggerAudit' via triggerSidePanelAction
-        // No separate case needed here.
+        case 'ping': // From popup or sidepanel checking readiness
+          console.log("SW: Responding to ping.");
+          sendResponse({ ok: true });
+          break;
 
         default:
-            console.warn("Received unhandled action in Service Worker:", request.action);
-            sendResponse({}); // Send empty response for unhandled actions
-            break;
-    }
-
-    // Return true if we are handling the response asynchronously
-    return isAsync;
-});
-
-
-// ============== ORGANIZER FUNCTIONS ==============
-
-async function handleGetTabGroupContent(tabIds) {
-    let combinedContent = '';
-    for (const tabId of tabIds) {
-        try {
-            await chrome.tabs.get(tabId); // Check if tab exists
-            const [{ result }] = await chrome.scripting.executeScript({
-                target: { tabId: tabId },
-                func: () => document.body ? document.body.innerText.substring(0, 3000) : ''
-            });
-            if (result) {
-                combinedContent += `\n--- Content from Tab ${tabId} ---\n${result}\n`;
-            }
-        } catch (error) {
-            // Ignore errors if tab closed or inaccessible
-            if (!error.message.includes("No tab with id") && !error.message.includes("Cannot access contents")) {
-                console.warn(`Failed to get content from tab ${tabId}:`, error.message);
-            }
-        }
-    }
-    return combinedContent.trim();
-}
-
-// ============== SCRIBE FUNCTIONS ==============
-
-async function getActiveTab() {
-     try {
-        const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-        return tab;
-     } catch (error) {
-         console.error("Error getting active tab:", error);
-         return null;
-     }
-}
-
-async function handleStartScribe(tab) {
-    if (isScribeRecording) {
-        console.warn("Scribe recording already in progress.");
-        return;
-    }
-     if (!tab || !tab.id) {
-         console.error("Cannot start Scribe: Invalid tab provided.");
-         // Inform side panel about the failure
-         try { chrome.runtime.sendMessage({ action: 'scribeStartFailed', error: "Invalid tab provided." }); } catch (e) {}
-         return;
-     }
-    isScribeRecording = true;
-    scribeSteps = [];
-    activeScribeTabId = tab.id;
-    lastScreenshotTime = 0; // Reset screenshot timer
-    console.log(`Starting Scribe recording on tab ${activeScribeTabId}`);
-
-    // Inject content script using scripting API
-    try {
-        if (tab.url?.startsWith('chrome://') || tab.url?.startsWith('chrome-extension://')) {
-            console.warn(`Cannot inject Scribe script into ${tab.url}`);
-            await logScribeStep('Start', `Started on restricted page: ${tab.url}`);
-            // Don't inject, but recording *is* technically active
-            return;
-        }
-
-        await chrome.scripting.executeScript({
-            target: { tabId: activeScribeTabId },
-            files: ['scribe-content.js'],
-            // world: 'MAIN' // Consider MAIN world if isolation causes issues, but default ISOLATED is safer
-        });
-        await chrome.scripting.insertCSS({
-            target: { tabId: activeScribeTabId },
-            files: ['scribe.css']
-        });
-        console.log(`Scribe script injected into tab ${activeScribeTabId}`);
-        await logScribeStep('Start', `Started recording on page: ${tab.title || tab.url}`);
-
-    } catch (e) {
-        console.error(`Failed to inject scribe script into tab ${activeScribeTabId}:`, e.message);
-        isScribeRecording = false;
-        activeScribeTabId = null;
-         try {
-             // Send failure message back to side panel
-              if (chrome.runtime?.id) { // Check validity
-                 chrome.runtime.sendMessage({ action: 'scribeStartFailed', error: e.message });
-              }
-         } catch (sendError) {
-             console.error("Failed to send scribeStartFailed message:", sendError);
-         }
-    }
-}
-
-
-// *** START: RESTORED SCRIBE STOP COMMUNICATION ***
-async function handleStopScribe() {
-    if (!isScribeRecording) return;
-    console.log("Stopping Scribe recording.");
-    isScribeRecording = false;
-    activeScribeTabId = null; // Clear active tab ID
-    lastScreenshotTime = 0;
-
-    // Send final steps back to the side panel
-    try {
-        if (chrome.runtime?.id) { // Check validity
-            await chrome.runtime.sendMessage({
-                action: 'scribeRecordingStopped', // Side panel should listen for this again
-                steps: scribeSteps
-            });
-            console.log("Scribe steps sent to side panel.");
-        } else {
-            console.warn("Runtime invalidated before sending Scribe steps.");
-            // Maybe store steps locally if sending fails? For recovery?
-        }
-    } catch (e) {
-        console.error("Failed to send scribe steps to side panel:", e.message);
-        // Handle error - maybe notify user or store locally
-    }
-    // *** END: RESTORED SCRIBE STOP COMMUNICATION ***
-
-    // Clean up CSS (best effort)
-    try {
-        const tabs = await chrome.tabs.query({});
-        for (const tab of tabs) {
-             if (tab.id && tab.url && !tab.url.startsWith('chrome://') && !tab.url.startsWith('chrome-extension://')) {
-                 try {
-                     await chrome.scripting.removeCSS({
-                         target: { tabId: tab.id },
-                         files: ['scribe.css']
-                     });
-                 } catch (removeCssError) {
-                      // More specific error checks
-                      if (!removeCssError.message.includes("No CSS detected") &&
-                          !removeCssError.message.includes("Cannot access contents") &&
-                          !removeCssError.message.includes("No tab with id"))
-                      {
-                           console.warn(`Could not remove Scribe CSS from tab ${tab.id}:`, removeCssError.message);
-                      }
-                 }
-            }
-        }
-    } catch (e) {
-        console.warn("Error during Scribe CSS cleanup query:", e.message);
-    }
-}
-
-
-async function logScribeStep(action, details, screenshotDataUrl) {
-    if (!isScribeRecording) return;
-
-    // No longer capturing screenshot here, it comes from content script
-    // The content script is responsible for sending the screenshotDataUrl
-
-    scribeSteps.push({
-        action: action,
-        details: details,
-        timestamp: Date.now(),
-        screenshotDataUrl: screenshotDataUrl // Now passed directly
-    });
-    console.log('Scribe step logged:', action, details ? `"${details.substring(0, 50)}..."` : '(No details)');
-}
-
-async function captureScreenshot() {
-    try {
-        const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-        if (!tab || !tab.windowId || tab.id == null) { // Added null check for id
-             console.warn("Cannot capture screenshot: No valid active tab found.");
-             return null;
-        }
-
-        if (tab.url?.startsWith('chrome://') || tab.url?.startsWith('chrome-extension://')) {
-             console.warn(`Cannot capture screenshot of restricted URL: ${tab.url}`);
-             return null;
-        }
-
-        // Check if tab status is complete - might help with dragging error
-        if (tab.status !== 'complete') {
-            console.warn(`Skipping screenshot: Tab status is '${tab.status}', not 'complete'.`);
-            return null;
-        }
-
-        const dataUrl = await chrome.tabs.captureVisibleTab(tab.windowId, {
-            format: 'jpeg',
-            quality: 70 // Slightly lower quality for size
-        });
-        return dataUrl;
+          console.warn('SW: Received unknown message type:', message?.type);
+          // Only send response if sendResponse is still valid
+          if (sendResponse) sendResponse({ success: false, error: 'Unknown message type' });
+      }
     } catch (error) {
-        if (error.message.includes("MAX_CAPTURE_VISIBLE_TAB_CALLS_PER_SECOND") ||
-            error.message.includes("Tabs cannot be edited right now") ||
-            error.message.includes("Cannot access contents of url") ||
-            error.message.includes("No tab with id")) // Added common errors
-        {
-            console.warn(`Skipping screenshot: ${error.message}`);
-        } else {
-            console.error('Failed to capture screenshot:', error); // Log unexpected errors
+      console.error(`SW: Error handling message type ${message?.type}:`, error);
+      // Only send response if sendResponse is still valid
+      if (sendResponse) sendResponse({ success: false, error: error.message });
+    }
+  })();
+
+  // Return true to indicate you wish to send a response asynchronously
+  return true;
+});
+
+
+// --- Tab Update Listener ---
+chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
+  // Filter for complete loads of main frames with http/https URLs
+  if (changeInfo.status === 'complete' && tab.url && (tab.url.startsWith('http:') || tab.url.startsWith('https:'))) {
+     console.log(`SW: Tab ${tabId} updated (${tab.url})`);
+     // Inform the side panel about the update for potential Scribe reinjection
+     chrome.runtime.sendMessage({ type: 'tab-updated', tabId: tabId })
+       .catch(err => {
+            // Ignore errors if the side panel isn't open
+            if (err.message?.includes("Receiving end does not exist")) return;
+            console.warn("SW: Error sending tab-updated message:", err.message);
+       });
+  }
+});
+
+// --- Helper Functions ---
+
+// Function to get content from a specific tab
+async function handleGetTabContent(tabId, sendResponse) {
+    console.log(`SW: Attempting to get content from tab ${tabId}`);
+    try {
+        const results = await chrome.scripting.executeScript({
+            target: { tabId: tabId },
+            func: () => ({
+                title: document.title,
+                text: document.body.innerText.substring(0, 15000) // Limit content length
+            })
+        });
+
+        if (chrome.runtime.lastError) {
+             throw new Error(`Scripting error: ${chrome.runtime.lastError.message}`);
         }
-        return null;
+
+        if (results && results[0] && results[0].result) {
+            console.log(`SW: Successfully retrieved content from tab ${tabId}`);
+            sendResponse({ success: true, data: results[0].result });
+        } else {
+            // This might happen on pages where content scripts cannot run (e.g., PDF viewer, protected pages)
+            throw new Error('Could not execute script or get result from tab.');
+        }
+    } catch (error) {
+        console.error(`SW: Failed to get content from tab ${tabId}:`, error);
+        sendResponse({ success: false, error: `Cannot access page content. It might be a restricted page or require permissions. (${error.message})` });
     }
 }
 
 
-// --- SCRIBE: Content Script Injection on Navigation ---
-// This is needed for multi-page recordings. It only injects, doesn't log steps.
-chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
-    if (isScribeRecording && changeInfo.status === 'complete' && tab.url) {
-        // Avoid injecting into restricted pages
-        if (!tab.url.startsWith('chrome://') && !tab.url.startsWith('chrome-extension://')) {
-            console.log(`Scribe: Navigation detected on tab ${tabId}. Re-injecting scripts.`);
-            (async () => {
-                try {
-                    // Always try to inject, catch error if already injected
-                    try {
-                        await chrome.scripting.executeScript({
-                            target: { tabId: tabId },
-                            files: ['scribe-content.js']
-                        });
-                         console.log(`Scribe content script re-injected into tab ${tabId}.`);
-                    } catch(e) {
-                         // Ignore "Cannot create duplicate script context" or similar errors
-                         if (!e.message.includes("duplicate script context") && !e.message.includes("Cannot access contents")) {
-                             console.warn(`Non-duplicate error during JS re-injection on tab ${tabId}:`, e.message);
-                         } else {
-                             console.log(`Scribe content script likely already present on tab ${tabId}.`);
-                         }
-                    }
+// Function to create a tab group
+async function handleCreateTabGroup(tabIds, groupName, sendResponse) {
+   console.log(`SW: Creating group "${groupName}" with tabs:`, tabIds);
+   try {
+       // Filter out invalid tab IDs just in case
+       const validTabIds = [];
+       for (const tabId of tabIds) {
+           try {
+               await chrome.tabs.get(tabId); // Check if tab exists
+               validTabIds.push(tabId);
+           } catch {
+               console.warn(`SW: Tab ID ${tabId} not found, skipping.`);
+           }
+       }
 
-                    // Always try to insert CSS, catch error if already there
-                     try {
-                        await chrome.scripting.insertCSS({
-                            target: { tabId: tabId },
-                            files: ['scribe.css']
-                        });
-                        console.log(`Scribe CSS re-inserted into tab ${tabId}.`);
-                    } catch (e) {
-                         // Ignore specific, expected errors when CSS might already exist or tab is inaccessible temporarily
-                         if (!e.message.includes("Internal error") && // Might occur if CSS is already injected
-                             !e.message.includes("Cannot access contents") &&
-                             !e.message.includes("No tab with id") &&
-                             !e.message.includes("Frame not found"))
-                         {
-                              console.warn(`Error during CSS re-insertion on tab ${tabId}:`, e.message);
-                         } else {
-                              console.log(`Scribe CSS likely already present or tab briefly inaccessible on tab ${tabId}.`);
-                         }
-                    }
+       if (validTabIds.length === 0) {
+           throw new Error("No valid tabs found to group.");
+       }
 
-                } catch (e) {
-                    // Catch errors if the tab becomes inaccessible during the process
-                     if (!e.message.includes("Cannot access contents") && !e.message.includes("No tab with id")) {
-                         console.error(`Error during Scribe re-injection check/process on tab ${tabId}:`, e.message);
-                    }
-                }
-            })();
-        } else {
-            console.log(`Scribe: Navigation detected on tab ${tabId} to restricted URL. Skipping injection.`);
-        }
-    }
-});
+       const groupId = await chrome.tabs.group({ tabIds: validTabIds });
+       await chrome.tabGroups.update(groupId, { title: groupName, collapsed: false });
+       console.log(`SW: Group ${groupId} created and named "${groupName}".`);
+       sendResponse({ success: true, groupId: groupId });
+   } catch (error) {
+       console.error(`SW: Failed to create tab group:`, error);
+       sendResponse({ success: false, error: `Could not create tab group. ${error.message}` });
+   }
+}
 
-
-// Listeners for onActivated and onRemoved remain commented out as requested.
-
-console.log('Spectrum AI Pro Service Worker Initialized (v3.4)');
+console.log("🚀 Spectrum AI Service Worker v3.2.1 started successfully.");
