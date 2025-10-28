@@ -1,220 +1,163 @@
-// service-worker.js - v3.2.1 Production
-// Handles background tasks, context menus, commands, and message passing.
+// service-worker.js - FIXED: Added all necessary message listeners
 
-// --- Context Menu and Command Setup ---
-chrome.runtime.onInstalled.addListener(async (details) => {
-  console.log('Spectrum AI Service Worker: onInstalled event.', details.reason);
-  // Remove existing menus to prevent duplicates after updates
-  await chrome.contextMenus.removeAll();
-
-  // Create context menus
-  chrome.contextMenus.create({
-    id: 'openSidepanel',
-    title: 'Open Spectrum AI Sidepanel',
-    contexts: ['page', 'selection', 'action']
+// --- Context Menu and Command Listeners ---
+chrome.runtime.onInstalled.addListener(() => {
+  // Clear all existing menus to prevent duplicates on reload
+  chrome.contextMenus.removeAll(() => {
+    chrome.contextMenus.create({
+      id: 'openSidepanel', // Generic open action
+      title: 'Open Spectrum AI Sidepanel',
+      contexts: ['page', 'selection', 'action'] // Add action context
+    });
+    chrome.contextMenus.create({
+      id: 'runAudit', // Specific action
+      title: 'Run Page Audit (Spectrum AI)',
+      contexts: ['page']
+    });
+     chrome.contextMenus.create({
+       id: 'startScribe', // Specific action
+       title: 'Start Recording Workflow (Spectrum AI)',
+       contexts: ['page', 'action']
+     });
+     chrome.contextMenus.create({
+        id: 'organizeTabs',
+        title: 'Organize Tabs (Spectrum AI)',
+        contexts: ['action']
+    });
   });
-  chrome.contextMenus.create({
-    id: 'runAudit',
-    title: 'Run Page Audit (Spectrum AI)',
-    contexts: ['page', 'action']
-  });
-   chrome.contextMenus.create({
-     id: 'startScribe',
-     title: 'Start Recording Workflow (Spectrum AI)',
-     contexts: ['page', 'action']
-   });
-   chrome.contextMenus.create({
-     id: 'organizeTabs',
-     title: 'Organize Tabs (Spectrum AI)',
-     contexts: ['action']
-   });
-
-  // Open setup page on first install
-  if (details.reason === 'install') {
-    chrome.runtime.openOptionsPage();
-  }
 });
 
-// --- Context Menu Click Handler ---
-chrome.contextMenus.onClicked.addListener(async (info, tab) => {
+
+chrome.contextMenus.onClicked.addListener((info, tab) => {
     if (!tab || typeof tab.windowId === 'undefined') {
-        console.error("SW: Context menu clicked without a valid tab context.");
+        console.error("Context menu clicked without a valid tab context.");
         return;
     }
-    try {
-        await chrome.sidePanel.open({ windowId: tab.windowId });
-        // Send a message after a short delay to give the side panel time to initialize
-        setTimeout(() => {
-            chrome.runtime.sendMessage({
-                type: 'context-menu-action',
-                action: info.menuItemId // The ID of the clicked menu item
-            }).catch(err => {
-                 // Common error if panel isn't ready or was closed quickly
-                 if (err.message?.includes("Receiving end does not exist")) return;
-                 console.warn("SW: Error sending context menu action (side panel might not be open/ready):", err.message);
-            });
-        }, 300); // 300ms delay, adjust if needed
-    } catch (error) {
-        console.error("SW: Error opening side panel or sending message:", error);
-    }
+    chrome.sidePanel.open({ windowId: tab.windowId });
+
+    // Send a message to the side panel to trigger the specific action
+    setTimeout(() => {
+        chrome.runtime.sendMessage({
+            type: 'context-menu-action',
+            action: info.menuItemId
+        }).catch(err => console.log("SW: Error sending context menu action:", err.message));
+    }, 500); // 500ms delay to allow panel to open
 });
 
-// --- Keyboard Command Handler ---
-chrome.commands.onCommand.addListener(async (command) => {
-  try {
-    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-    if (tab && typeof tab.windowId !== 'undefined') {
-      await chrome.sidePanel.open({ windowId: tab.windowId });
-       // Send a message after a delay
-       setTimeout(() => {
-         chrome.runtime.sendMessage({
-           type: 'keyboard-command',
-           command: command // The command name from manifest.json
-         }).catch(err => {
-              if (err.message?.includes("Receiving end does not exist")) return;
-              console.warn("SW: Error sending keyboard command (side panel might not be open/ready):", err.message);
-         });
-       }, 300);
+chrome.commands.onCommand.addListener((command) => {
+  chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+    if (tabs[0] && typeof tabs[0].windowId !== 'undefined') {
+      chrome.sidePanel.open({ windowId: tabs[0].windowId });
+      setTimeout(() => {
+        chrome.runtime.sendMessage({
+          type: 'keyboard-command',
+          command: command // e.g., "run-audit", "start-scribe"
+        }).catch(err => console.log("SW: Error sending keyboard command:", err.message));
+      }, 500);
     } else {
-        console.error("SW: Keyboard command triggered without an active tab.");
+        console.error("Keyboard command triggered without an active tab.");
     }
-  } catch(error) {
-     console.error("SW: Error handling command:", command, error);
-  }
+  });
 });
 
 // --- Central Message Listener ---
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  // Use async immediately to handle promises and keep channel open
-  (async () => {
-    try {
-      console.log(`SW: Received message type: ${message?.type} from ${sender.tab ? 'tab ' + sender.tab.id : 'extension'}`);
-
-      switch (message?.type) {
-        case 'get-tab-content':
-          if (!message.tabId) throw new Error("Missing tabId for get-tab-content");
-          await handleGetTabContent(message.tabId, sendResponse);
-          break;
-
-        case 'create-tab-group':
-          if (!message.tabIds || !message.groupName) throw new Error("Missing tabIds or groupName for create-tab-group");
-          await handleCreateTabGroup(message.tabIds, message.groupName, sendResponse);
-          break;
-
-        case 'scribe-click': // From scribe-content.js
-           if (!message.payload) throw new Error("Missing payload for scribe-click");
-           // Forward to sidepanel if it's open
-           chrome.runtime.sendMessage({
-               type: 'scribe-click-captured',
-               data: message.payload,
-               tabId: sender.tab?.id
-           }).catch(err => {
-              if (err.message?.includes("Receiving end does not exist")) {
-                 console.log("SW: Scribe click received, but sidepanel not open.");
-                 // Optionally, stop the content script here if needed
-              } else {
-                 console.warn("SW: Error forwarding scribe click to sidepanel:", err.message);
-              }
-           });
-           sendResponse({ success: true }); // Acknowledge receipt
-           break;
-
-        case 'ping': // From popup or sidepanel checking readiness
-          console.log("SW: Responding to ping.");
-          sendResponse({ ok: true });
-          break;
-
-        default:
-          console.warn('SW: Received unknown message type:', message?.type);
-          // Only send response if sendResponse is still valid
-          if (sendResponse) sendResponse({ success: false, error: 'Unknown message type' });
+  // 1. Listener for 'get-tab-content' from side panel
+  if (message.type === 'get-tab-content') {
+    (async () => {
+      const tabId = message.tabId || sender.tab?.id;
+      if (typeof tabId !== 'number') {
+        sendResponse({ success: false, error: 'Invalid tabId specified.' });
+        return;
       }
-    } catch (error) {
-      console.error(`SW: Error handling message type ${message?.type}:`, error);
-      // Only send response if sendResponse is still valid
-      if (sendResponse) sendResponse({ success: false, error: error.message });
-    }
-  })();
+      try {
+        const results = await chrome.scripting.executeScript({
+          target: { tabId: tabId },
+          func: () => ({
+              title: document.title,
+              text: document.body.innerText.substring(0, 200000) // Truncate
+          })
+        });
 
-  // Return true to indicate you wish to send a response asynchronously
-  return true;
+        if (chrome.runtime.lastError) throw new Error(chrome.runtime.lastError.message);
+        if (results && results[0] && results[0].result) {
+          sendResponse({ success: true, data: results[0].result });
+        } else {
+          sendResponse({ success: true, data: { title: "Page content not accessible", text: "" } });
+        }
+      } catch (e) {
+        let error = e.message || 'Unknown error getting tab content.';
+        if (error.includes("Cannot access")) error = "Cannot analyze this type of page (e.g., Chrome Store, chrome:// pages).";
+        sendResponse({ success: false, error: error });
+      }
+    })();
+    return true; // Indicates asynchronous response
+  }
+
+  // 2. Listener for 'create-tab-group' from side panel
+  if (message.type === 'create-tab-group') {
+    (async () => {
+      try {
+         if (!message.tabIds || !Array.isArray(message.tabIds) || message.tabIds.length === 0) {
+            throw new Error('No valid tabIds provided.');
+         }
+         const allTabs = await chrome.tabs.query({ currentWindow: true });
+         const allTabIds = new Set(allTabs.map(t => t.id));
+         const validTabIds = message.tabIds.filter(id => allTabIds.has(id));
+         
+         if (validTabIds.length === 0) {
+             throw new Error('None of the target tabs could be found.');
+         }
+
+        const groupId = await chrome.tabs.group({ tabIds: validTabIds });
+        await chrome.tabGroups.update(groupId, { title: message.groupName || "AI Group" });
+        sendResponse({ success: true, groupId: groupId });
+      } catch (e) {
+        sendResponse({ success: false, error: e.message || 'Error creating tab group.' });
+      }
+    })();
+    return true; // Indicates asynchronous response
+  }
+
+  // 3. Listener for 'scribe-click' from content script
+  if (message.type === 'scribe-click') {
+      // Forward the click event to the side panel
+      chrome.runtime.sendMessage({
+          type: 'scribe-click-captured',
+          data: message.payload,
+          tabId: sender.tab?.id
+      }).catch(err => console.log("SW: Error forwarding scribe click:", err.message));
+      return false; // No response needed back to content script
+  }
+
+  // 4. Ping from popup.js or sidepanel.js
+  if (message && message.type === 'ping') {
+    console.log("Service worker received ping");
+    sendResponse({ ok: true });
+    return false; // Sync response
+  }
+  
+  return false; // Default for unhandled messages
 });
-
 
 // --- Tab Update Listener ---
 chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
   // Filter for complete loads of main frames with http/https URLs
-  if (changeInfo.status === 'complete' && tab.url && (tab.url.startsWith('http:') || tab.url.startsWith('https:'))) {
-     console.log(`SW: Tab ${tabId} updated (${tab.url})`);
-     // Inform the side panel about the update for potential Scribe reinjection
-     chrome.runtime.sendMessage({ type: 'tab-updated', tabId: tabId })
-       .catch(err => {
-            // Ignore errors if the side panel isn't open
-            if (err.message?.includes("Receiving end does not exist")) return;
-            console.warn("SW: Error sending tab-updated message:", err.message);
-       });
+  if (changeInfo.status === 'complete' && tab.url && 
+      (tab.url.startsWith('http:') || tab.url.startsWith('https:'))) {
+    console.log(`SW: Tab ${tabId} updated (${tab.url})`);
+    
+    // Inform the side panel about the update for potential Scribe reinjection
+    // FIX: Don't await the promise, just catch errors silently
+    chrome.runtime.sendMessage({ type: 'tab-updated', tabId: tabId })
+      .catch(err => {
+        // Silently ignore "Receiving end does not exist" errors
+        if (err.message && !err.message.includes("Receiving end does not exist")) {
+          console.warn("SW: Error sending tab-updated message:", err.message);
+        }
+      });
   }
 });
 
-// --- Helper Functions ---
 
-// Function to get content from a specific tab
-async function handleGetTabContent(tabId, sendResponse) {
-    console.log(`SW: Attempting to get content from tab ${tabId}`);
-    try {
-        const results = await chrome.scripting.executeScript({
-            target: { tabId: tabId },
-            func: () => ({
-                title: document.title,
-                text: document.body.innerText.substring(0, 15000) // Limit content length
-            })
-        });
-
-        if (chrome.runtime.lastError) {
-             throw new Error(`Scripting error: ${chrome.runtime.lastError.message}`);
-        }
-
-        if (results && results[0] && results[0].result) {
-            console.log(`SW: Successfully retrieved content from tab ${tabId}`);
-            sendResponse({ success: true, data: results[0].result });
-        } else {
-            // This might happen on pages where content scripts cannot run (e.g., PDF viewer, protected pages)
-            throw new Error('Could not execute script or get result from tab.');
-        }
-    } catch (error) {
-        console.error(`SW: Failed to get content from tab ${tabId}:`, error);
-        sendResponse({ success: false, error: `Cannot access page content. It might be a restricted page or require permissions. (${error.message})` });
-    }
-}
-
-
-// Function to create a tab group
-async function handleCreateTabGroup(tabIds, groupName, sendResponse) {
-   console.log(`SW: Creating group "${groupName}" with tabs:`, tabIds);
-   try {
-       // Filter out invalid tab IDs just in case
-       const validTabIds = [];
-       for (const tabId of tabIds) {
-           try {
-               await chrome.tabs.get(tabId); // Check if tab exists
-               validTabIds.push(tabId);
-           } catch {
-               console.warn(`SW: Tab ID ${tabId} not found, skipping.`);
-           }
-       }
-
-       if (validTabIds.length === 0) {
-           throw new Error("No valid tabs found to group.");
-       }
-
-       const groupId = await chrome.tabs.group({ tabIds: validTabIds });
-       await chrome.tabGroups.update(groupId, { title: groupName, collapsed: false });
-       console.log(`SW: Group ${groupId} created and named "${groupName}".`);
-       sendResponse({ success: true, groupId: groupId });
-   } catch (error) {
-       console.error(`SW: Failed to create tab group:`, error);
-       sendResponse({ success: false, error: `Could not create tab group. ${error.message}` });
-   }
-}
-
-console.log("🚀 Spectrum AI Service Worker v3.2.1 started successfully.");
+console.log("Spectrum AI Service Worker v3.2.1 started.");

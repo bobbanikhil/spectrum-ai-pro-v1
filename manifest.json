@@ -11,9 +11,10 @@
     "storage",
     "tabs",
     "tabGroups",
+    "languageModel",
+    "tts",
     "notifications",
-    "downloads",
-    "ai"
+    "downloads"
   ],
   "host_permissions": [
     "<all_urls>"
@@ -37,6 +38,7 @@
     {
       "resources": [
         "Content Scripts/scribe.css",
+        "sidepanel.css",
         "Content Scripts/scribe-content.js",
         "chart.umd.min.js",
         "jspdf.umd.min.js"
@@ -53,22 +55,22 @@
         "default": "Ctrl+Shift+A",
         "mac": "Command+Shift+A"
       },
-      "description": "Run website audit (Spectrum AI)"
+      "description": "Run website audit"
     },
-     "start-scribe": {
-       "suggested_key": {
-         "default": "Ctrl+Shift+S",
-         "mac": "Command+Shift+S"
-       },
-       "description": "Start Scribe recording (Spectrum AI)"
-     },
-     "organize-tabs": {
-       "suggested_key": {
-         "default": "Ctrl+Shift+O",
-         "mac": "Command+Shift+O"
-       },
-       "description": "Organize tabs with AI (Spectrum AI)"
-     }
+    "start-scribe": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+S",
+        "mac": "Command+Shift+S"
+      },
+      "description": "Start Scribe recording"
+    },
+    "organize-tabs": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+O",
+        "mac": "Command+Shift+O"
+      },
+      "description": "Organize tabs"
+    }
   },
   "content_security_policy": {
     "extension_pages": "script-src 'self'; object-src 'self'"

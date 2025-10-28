@@ -2,7 +2,13 @@
 // SPECTRUM AI PRO ENHANCED v3.2.1
 // Scribe Module - Workflow Documentation
 // ============================================
+// Add at start of any function that uses AI
+if (!aiManager || aiManager.isAvailable === 'no') {
+  throw new Error('AI is not available. Please enable Chrome AI flags.');
+}
 
+// Before calling prompt:
+await aiManager.createSession(); // Ensure session exists
 // Global variables specific to Scribe, prefixed for clarity
 let scribe_lastScreenshotTime = 0;
 const SCRIBE_SCREENSHOT_DEBOUNCE = 1000; // 1 second debounce for screenshots
