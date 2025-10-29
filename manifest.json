@@ -37,7 +37,7 @@
   },
   "web_accessible_resources": [
     {
-      "resources": ["scribe.css"],
+      "resources": ["docflow.css"],
       "matches": ["<all_urls>"]
     }
   ],
@@ -50,12 +50,12 @@
       },
       "description": "Run comprehensive page audit"
     },
-    "start-scribe": {
+    "start-docflow": {
       "suggested_key": {
         "default": "Ctrl+Shift+S",
         "mac": "Command+Shift+S"
       },
-      "description": "Start Scribe recording"
+      "description": "Start Doc Flow recording"
     },
     "organize-tabs": {
       "suggested_key": {

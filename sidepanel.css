@@ -706,9 +706,9 @@ body {
 }
 
 /* ============================================
-   SCRIBE STEPS
+   DOC FLOW STEPS
    ============================================ */
-.scribe-step {
+.doc-flow-step {
     padding: 16px;
     background: var(--bg-tertiary);
     border-radius: var(--radius-md);
@@ -716,13 +716,13 @@ body {
     border-left: 4px solid var(--success);
 }
 
-.scribe-step p {
+.doc-flow-step p {
     margin-bottom: 12px;
     font-size: 13px;
     color: var(--text-primary);
 }
 
-.scribe-step img {
+.doc-flow-step img {
     width: 100%;
     border-radius: var(--radius-sm);
     box-shadow: var(--shadow-md);

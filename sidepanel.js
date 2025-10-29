@@ -10,8 +10,8 @@ let currentAuditReport = '';
 let currentAuditUrl = '';
 let currentTabGroups = [];
 let isRecording = false;
-let scribeSteps = [];
-let activeScribeTabId = null;
+let docFlowSteps = [];
+let activeDocFlowTabId = null;
 
 const elements = {};
 
@@ -50,7 +50,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     updateStatus('audit', 'Ready to analyze', 'info');
     updateStatus('organizer', 'Ready to organize tabs', 'info');
-    updateStatus('scribe', 'Ready to record workflow', 'info');
+    updateStatus('docFlow', 'Ready to record workflow', 'info');
 
     console.log('✅ Spectrum AI Pro V3.0 ready!');
 });
@@ -86,20 +86,21 @@ function cacheElements() {
     elements.organizerChatInput = document.getElementById('organizerChatInput');
     elements.organizerChatSend = document.getElementById('organizerChatSend');
 
-    // Scribe Elements
-    elements.startScribeButton = document.getElementById('startScribeButton');
-    elements.stopScribeButton = document.getElementById('stopScribeButton');
-    elements.scribeStatus = document.getElementById('scribeStatus');
-    elements.scribeStatusText = document.getElementById('scribeStatusText');
-    elements.scribeLoader = document.getElementById('scribeLoader');
-    elements.scribeActionsPanel = document.getElementById('scribeActionsPanel');
+    // Doc Flow Elements
+    // Doc Flow Elements
+    elements.startDocFlowButton = document.getElementById('startDocFlowButton');
+    elements.stopDocFlowButton = document.getElementById('stopDocFlowButton');
+    elements.docFlowStatus = document.getElementById('docFlowStatus');
+    elements.docFlowStatusText = document.getElementById('docFlowStatusText');
+    elements.docFlowLoader = document.getElementById('docFlowLoader');
+    elements.docFlowActionsPanel = document.getElementById('docFlowActionsPanel');
     elements.generalizeWorkflowButton = document.getElementById('generalizeWorkflowButton');
     elements.generateQaButton = document.getElementById('generateQaButton');
     elements.downloadPdfButton = document.getElementById('downloadPdfButton');
-    elements.scribeChatContainer = document.getElementById('scribeChatContainer');
-    elements.scribeChatMessages = document.getElementById('scribeChatMessages');
-    elements.scribeChatInput = document.getElementById('scribeChatInput');
-    elements.scribeChatSend = document.getElementById('scribeChatSend');
+    elements.docFlowChatContainer = document.getElementById('docFlowChatContainer');
+    elements.docFlowChatMessages = document.getElementById('docFlowChatMessages');
+    elements.docFlowChatInput = document.getElementById('docFlowChatInput');
+    elements.docFlowChatSend = document.getElementById('docFlowChatSend');
 
     // History Elements
     elements.historySearchInput = document.getElementById('historySearchInput');
@@ -165,16 +166,16 @@ function setupEventListeners() {
         });
     }
 
-    // Scribe event handlers
-    if (elements.startScribeButton) elements.startScribeButton.addEventListener('click', startScribe);
-    if (elements.stopScribeButton) elements.stopScribeButton.addEventListener('click', stopScribe);
+    // Doc Flow event handlers
+    if (elements.startDocFlowButton) elements.startDocFlowButton.addEventListener('click', startDocFlow);
+    if (elements.stopDocFlowButton) elements.stopDocFlowButton.addEventListener('click', stopDocFlow);
     if (elements.generalizeWorkflowButton) elements.generalizeWorkflowButton.addEventListener('click', generalizeWorkflow);
     if (elements.generateQaButton) elements.generateQaButton.addEventListener('click', generateQa);
     if (elements.downloadPdfButton) elements.downloadPdfButton.addEventListener('click', downloadPdf);
-    if (elements.scribeChatSend) elements.scribeChatSend.addEventListener('click', () => sendChatMessage('scribe'));
-    if (elements.scribeChatInput) {
-        elements.scribeChatInput.addEventListener('keypress', e => {
-            if (e.key === 'Enter') sendChatMessage('scribe');
+    if (elements.docFlowChatSend) elements.docFlowChatSend.addEventListener('click', () => sendChatMessage('docFlow'));
+    if (elements.docFlowChatInput) {
+        elements.docFlowChatInput.addEventListener('keypress', e => {
+            if (e.key === 'Enter') sendChatMessage('docFlow');
         });
     }
 
@@ -805,12 +806,12 @@ Markdown format.`;
 }
 
 async function generateQa() {
-    if (scribeSteps.length === 0) {
-        updateStatus('scribe', 'No steps to generate Q&A from.', 'warning');
+    if (docFlowSteps.length === 0) {
+        updateStatus('docFlow', 'No steps to generate Q&A from.', 'warning');
         return;
     }
 
-    const stepDescriptions = scribeSteps.filter(step => step.type !== 'screenshot').map((step, i) => {
+    const stepDescriptions = docFlowSteps.filter(step => step.type !== 'screenshot').map((step, i) => {
         return `Step ${i + 1}: ${step.type} on ${step.selector || step.url || step.text}`;
     }).join('\n');
 
@@ -819,80 +820,81 @@ async function generateQa() {
 WORKFLOW STEPS:
 ${stepDescriptions}`;
 
-    await runAIActionStreaming(prompt, 'Generating Q&A...', 'scribe', '❓ Workflow Q&A');
+    await runAIActionStreaming(prompt, 'Generating Q&A...', 'docFlow', '❓ Workflow Q&A');
 }
 
-// SCRIBE FUNCTIONS
+// DOC FLOW FUNCTIONS
 
 // Start recording workflow steps
-async function startScribe() {
+// Start recording workflow steps
+async function startDocFlow() {
     try {
         const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
 
         if (!tab) {
-            updateStatus('scribe', 'No active tab', 'error');
+            updateStatus('docFlow', 'No active tab', 'error');
             return;
         }
 
         if (tab.url.startsWith('chrome://') || tab.url.startsWith('chrome-extension://') || tab.url.startsWith('about:')) {
-            updateStatus('scribe', 'Cannot record Chrome internal pages', 'error');
+            updateStatus('docFlow', 'Cannot record Chrome internal pages', 'error');
             return;
         }
 
-        // Send message to service worker to start recording
-        await chrome.runtime.sendMessage({ action: 'startScribeRecording' });
+    // Send message to service worker to start recording
+    await chrome.runtime.sendMessage({ action: 'startDocFlowRecording' });
 
-        isRecording = true;
-        activeScribeTabId = tab.id;
-        scribeSteps = []; // Clear previous steps
+    isRecording = true;
+    activeDocFlowTabId = tab.id;
+    docFlowSteps = []; // Clear previous steps
 
-        elements.startScribeButton.style.display = 'none';
-        elements.stopScribeButton.style.display = 'block';
+    if (elements.startDocFlowButton) elements.startDocFlowButton.style.display = 'none';
+    if (elements.stopDocFlowButton) elements.stopDocFlowButton.style.display = 'block';
 
-        updateStatus('scribe', '🔴 Recording...', 'info');
+    updateStatus('docFlow', '🔴 Recording...', 'info');
 
     } catch (error) {
-        console.error('Start scribe error:', error);
-        updateStatus('scribe', 'Failed to start', 'error');
+        console.error('Start docflow error:', error);
+        updateStatus('docFlow', 'Failed to start', 'error');
     }
 }
 
 // Stop recording, generate guide
-async function stopScribe() {
+async function stopDocFlow() {
     // Send message to service worker to stop recording
-    await chrome.runtime.sendMessage({ action: 'stopScribeRecording' });
+    await chrome.runtime.sendMessage({ action: 'stopDocFlowRecording' });
 
     isRecording = false;
 
-    elements.startScribeButton.style.display = 'block';
-    elements.stopScribeButton.style.display = 'none';
+    if (elements.startDocFlowButton) elements.startDocFlowButton.style.display = 'block';
+    if (elements.stopDocFlowButton) elements.stopDocFlowButton.style.display = 'none';
 
-    updateStatus('scribe', 'Processing...', 'info');
-    showLoader('scribe', true);
+    updateStatus('docFlow', 'Processing...', 'info');
+    showLoader('docFlow', true);
 
     try {
         // Get recorded steps from service worker
-        const response = await chrome.runtime.sendMessage({ action: 'getScribeSteps' });
-        scribeSteps = response.steps || [];
+        const response = await chrome.runtime.sendMessage({ action: 'getDocFlowSteps' });
+        docFlowSteps = response.steps || [];
 
-        if (scribeSteps.length === 0) {
-            updateStatus('scribe', 'No steps recorded.', 'warning');
+        if (docFlowSteps.length === 0) {
+            updateStatus('docFlow', 'No steps recorded.', 'warning');
             if (elements.results) elements.results.innerHTML = '<div class="placeholder"><h2>No steps recorded.</h2><p>Please interact with the page while recording.</p></div>';
             return;
         }
 
         await generateWorkflowGuide();
 
-        if (elements.scribeActionsPanel) elements.scribeActionsPanel.style.display = 'grid';
-        if (elements.scribeChatContainer) elements.scribeChatContainer.style.display = 'block';
+        if (elements.docFlowActionsPanel) elements.docFlowActionsPanel.style.display = 'grid';
+        if (elements.docFlowChatContainer) elements.docFlowChatContainer.style.display = 'block';
 
-        updateStatus('scribe', '✅ Guide generated!', 'success');
+        updateStatus('docFlow', '✅ Guide generated!', 'success');
 
     } catch (error) {
-        console.error('Stop scribe error:', error);
-        updateStatus('scribe', `Failed to process: ${error.message}`, 'error');
+        console.error('Stop docflow error:', error);
+        updateStatus('docFlow', `Failed to process: ${error.message}`, 'error');
     } finally {
-        showLoader('scribe', false);
+        showLoader('docFlow', false);
     }
 }
 
@@ -903,22 +905,22 @@ async function generateWorkflowGuide() {
     let html = '<div class="report-container"><h2>📝 Workflow Guide</h2>';
     let stepCounter = 0;
 
-    for (let i = 0; i < scribeSteps.length; i++) {
-        const step = scribeSteps[i];
+    for (let i = 0; i < docFlowSteps.length; i++) {
+        const step = docFlowSteps[i];
 
         if (step.type === 'screenshot') {
-            html += `<div class="scribe-step"><img src="${step.dataUrl}" alt="Screenshot for step ${stepCounter}"></div>`;
+            html += `<div class="doc-flow-step"><img src="${step.dataUrl}" alt="Screenshot for step ${stepCounter}"></div>`;
         } else {
             stepCounter++;
             const prompt = `Create clear instructions for: "${step.type} - ${step.selector || step.url || step.text}". Start with an action verb. Keep it to 1-2 sentences.`;
 
-            updateStatus('scribe', `Generating instruction for step ${stepCounter}...`, 'info');
+            updateStatus('docFlow', `Generating instruction for step ${stepCounter}...`, 'info');
 
             try {
                 const stepText = await session.prompt(prompt);
-                html += `<div class="scribe-step"><p><strong>Step ${stepCounter}:</strong> ${escapeHtml(stepText)}</p></div>`;
+                html += `<div class="doc-flow-step"><p><strong>Step ${stepCounter}:</strong> ${escapeHtml(stepText)}</p></div>`;
             } catch (error) {
-                html += `<div class="scribe-step"><p><strong>Step ${stepCounter}:</strong> Failed to generate instruction (${escapeHtml(step.type)} on ${escapeHtml(step.selector || step.url || step.text)})</p></div>`;
+                html += `<div class="doc-flow-step"><p><strong>Step ${stepCounter}:</strong> Failed to generate instruction (${escapeHtml(step.type)} on ${escapeHtml(step.selector || step.url || step.text)})</p></div>`;
             }
         }
     }
@@ -931,12 +933,12 @@ async function generateWorkflowGuide() {
 
 // Generalize recorded workflow into template
 async function generalizeWorkflow() {
-    if (scribeSteps.length === 0) {
-        updateStatus('scribe', 'No steps to generalize.', 'warning');
+    if (docFlowSteps.length === 0) {
+        updateStatus('docFlow', 'No steps to generalize.', 'warning');
         return;
     }
 
-    const stepDescriptions = scribeSteps.filter(step => step.type !== 'screenshot').map((step, i) => {
+    const stepDescriptions = docFlowSteps.filter(step => step.type !== 'screenshot').map((step, i) => {
         return `Step ${i + 1}: ${step.type} on ${step.selector || step.url || step.text}`;
     }).join('\n');
 
@@ -945,7 +947,7 @@ async function generalizeWorkflow() {
 WORKFLOW STEPS:
 ${stepDescriptions}`;
 
-    await runAIActionStreaming(prompt, 'Generalizing workflow...', 'scribe', '🔧 Generalized Workflow');
+    await runAIActionStreaming(prompt, 'Generalizing workflow...', 'docFlow', '🔧 Generalized Workflow');
 }
 
 function downloadPdf() {
@@ -972,8 +974,8 @@ function downloadPdf() {
                 scale: 0.8 // Adjust scale to fit content on page
             }
         });
-    } else if (scribeSteps.length > 0) {
-        updateStatus('scribe', 'Generating PDF...', 'info');
+    } else if (docFlowSteps.length > 0) {
+        updateStatus('docFlow', 'Generating PDF...', 'info');
 
         const { jsPDF } = window.jspdf;
         const doc = new jsPDF();
@@ -987,7 +989,7 @@ function downloadPdf() {
         doc.html(elements.results.querySelector('.report-container'), {
             callback: function (doc) {
                 doc.save(`spectrum_ai_workflow_${new Date().toISOString().slice(0, 10)}.pdf`);
-                updateStatus('scribe', 'PDF generated!', 'success');
+                updateStatus('docFlow', 'PDF generated!', 'success');
             },
             x: 10,
             y: 30,
@@ -999,8 +1001,8 @@ function downloadPdf() {
             }
         });
     } else {
-        updateStatus('audit', 'No report or workflow to export.', 'warning');
-        updateStatus('scribe', 'No report or workflow to export.', 'warning');
+    updateStatus('audit', 'No report or workflow to export.', 'warning');
+    updateStatus('docFlow', 'No report or workflow to export.', 'warning');
     }
 }
 
@@ -1073,7 +1075,7 @@ function downloadJson() {
 
 // CHAT FUNCTIONS
 
-// Send chat message in context of current tab (auditor, organizer, scribe)
+// Send chat message in context of current tab (auditor, organizer, docFlow)
 async function sendChatMessage(type) {
     const inputElement = elements[`${type}ChatInput`];
     const messagesElement = elements[`${type}ChatMessages`];

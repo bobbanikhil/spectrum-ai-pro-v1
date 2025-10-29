@@ -2,7 +2,7 @@
 // Professional on-device AI assistant with improved performance and reliability
 
 // Global state management
-let scribeSession = {
+let docFlowSession = {
     isRecording: false,
     pendingScreenshot: null,
     recordedSteps: [],
@@ -104,47 +104,47 @@ chrome.contextMenus.onClicked.addListener((info, tab) => {
 });
 
 // =================================================================
-// --- Scribe Recording System ---
+// --- Doc Flow Recording System ---
 // =================================================================
 
-// Inject Scribe script for recording
-const injectScribeIfNeeded = (tabId, url) => {
-    if (scribeSession.isRecording && url?.startsWith('http')) {
-        console.log(`Scribe Session: Injecting script into tab ${tabId}`);
+// Inject Doc Flow script for recording
+const injectDocFlowIfNeeded = (tabId, url) => {
+    if (docFlowSession.isRecording && url?.startsWith('http')) {
+        console.log(`Doc Flow Session: Injecting script into tab ${tabId}`);
 
         chrome.scripting.executeScript({
             target: { tabId: tabId },
-            files: ['scribe.js']
+            files: ['docflow.js']
         }).then(() => {
             chrome.scripting.insertCSS({
                 target: { tabId: tabId },
-                files: ['scribe.css']
+                files: ['docflow.css']
             });
         }).catch(err => {
-            console.warn(`Scribe: Failed to inject script into ${url}. It might be a protected page.`);
+            console.warn(`Doc Flow: Failed to inject script into ${url}. It might be a protected page.`);
         });
     }
 };
 
-// Tab update handler for Scribe
+// Tab update handler for Doc Flow
 chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
     if (changeInfo.status === 'complete') {
         try {
             const updatedTab = await chrome.tabs.get(tabId);
             if (!updatedTab.url) return;
 
-            // Scribe re-injection and screenshot logic
-            injectScribeIfNeeded(tabId, updatedTab.url);
+            // Doc Flow re-injection and screenshot logic
+            injectDocFlowIfNeeded(tabId, updatedTab.url);
 
             // Handle pending screenshots
-            if (scribeSession.pendingScreenshot && scribeSession.pendingScreenshot.tabId === tabId) {
+            if (docFlowSession.pendingScreenshot && docFlowSession.pendingScreenshot.tabId === tabId) {
                 await takeScreenshot(tabId);
-                scribeSession.pendingScreenshot = null;
+                docFlowSession.pendingScreenshot = null;
             }
 
-            // Record navigation for Scribe
-            if (scribeSession.isRecording && scribeSession.activeTabId === tabId) {
-                scribeSession.recordedSteps.push({
+            // Record navigation for Doc Flow
+            if (docFlowSession.isRecording && docFlowSession.activeTabId === tabId) {
+                docFlowSession.recordedSteps.push({
                     type: 'navigation',
                     url: updatedTab.url,
                     title: updatedTab.title,
@@ -159,12 +159,12 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
 
 // Handle tab activation changes
 chrome.tabs.onActivated.addListener(async (activeInfo) => {
-    if (scribeSession.isRecording) {
-        scribeSession.activeTabId = activeInfo.tabId;
+    if (docFlowSession.isRecording) {
+        docFlowSession.activeTabId = activeInfo.tabId;
 
         try {
             const tab = await chrome.tabs.get(activeInfo.tabId);
-            injectScribeIfNeeded(activeInfo.tabId, tab.url);
+            injectDocFlowIfNeeded(activeInfo.tabId, tab.url);
         } catch (error) {
             console.error('Tab activation handler error:', error);
         }
@@ -194,20 +194,20 @@ async function takeScreenshot(tabId) {
 
 chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
     switch (request.action) {
-        case 'startScribeRecording':
-            startScribeRecording(sender.tab?.id);
+        case 'startDocFlowRecording':
+            startDocFlowRecording(sender.tab?.id);
             break;
 
-        case 'stopScribeRecording':
-            stopScribeRecording();
+        case 'stopDocFlowRecording':
+            stopDocFlowRecording();
             break;
 
         case 'recordAction':
             await recordAction(request.data);
             break;
 
-        case 'getScribeSteps':
-            sendResponse({ steps: scribeSession.recordedSteps });
+        case 'getDocFlowSteps':
+            sendResponse({ steps: docFlowSession.recordedSteps });
             break;
 
         case 'runQuickAudit':
@@ -227,13 +227,14 @@ chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
 });
 
 // =================================================================
-// --- Scribe Session Management ---
+// --- Doc Flow Session Management ---
 // =================================================================
 
-function startScribeRecording(tabId) {
-    scribeSession.isRecording = true;
-    scribeSession.activeTabId = tabId;
-    scribeSession.recordedSteps = [];
+
+function startDocFlowRecording(tabId) {
+    docFlowSession.isRecording = true;
+    docFlowSession.activeTabId = tabId;
+    docFlowSession.recordedSteps = [];
 
     // Update extension icon
     chrome.action.setIcon({
@@ -244,17 +245,17 @@ function startScribeRecording(tabId) {
         }
     });
 
-    // Inject Scribe into current tab
+    // Inject Doc Flow into current tab
     if (tabId) {
         chrome.tabs.get(tabId, (tab) => {
-            injectScribeIfNeeded(tabId, tab.url);
+            injectDocFlowIfNeeded(tabId, tab.url);
         });
     }
 }
 
-function stopScribeRecording() {
-    scribeSession.isRecording = false;
-    scribeSession.activeTabId = null;
+function stopDocFlowRecording() {
+    docFlowSession.isRecording = false;
+    docFlowSession.activeTabId = null;
 
     // Reset extension icon
     chrome.action.setIcon({
@@ -267,22 +268,22 @@ function stopScribeRecording() {
 }
 
 async function recordAction(actionData) {
-    if (scribeSession.isRecording) {
-        scribeSession.recordedSteps.push({
+    if (docFlowSession.isRecording) {
+        docFlowSession.recordedSteps.push({
             ...actionData,
             timestamp: Date.now(),
-            tabId: scribeSession.activeTabId
+            tabId: docFlowSession.activeTabId
         });
 
         // Automatically take a screenshot for click and input actions
         if (actionData.type === 'click' || actionData.type === 'input' || actionData.type === 'navigation') {
-            const screenshotDataUrl = await takeScreenshot(scribeSession.activeTabId);
+            const screenshotDataUrl = await takeScreenshot(docFlowSession.activeTabId);
             if (screenshotDataUrl) {
-                scribeSession.recordedSteps.push({
+                docFlowSession.recordedSteps.push({
                     type: 'screenshot',
                     dataUrl: screenshotDataUrl,
                     timestamp: Date.now(),
-                    tabId: scribeSession.activeTabId
+                    tabId: docFlowSession.activeTabId
                 });
             }
         }

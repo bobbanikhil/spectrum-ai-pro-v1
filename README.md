@@ -45,11 +45,11 @@ This module tames tab chaos by using AI to understand, group, and analyze your b
     *   **Summarize Group:** Get a summary of the common themes across a set of tabs.
     *   **Compare Group:** Ask the AI to compare and contrast the content of tabs within a group.
 
-### 3. Scribe (AI Workflow Recorder)
-Scribe watches you perform a task and automatically generates a beautiful, step-by-step guide.
+### 3. Doc Flow (AI Workflow Recorder)
+Doc Flow watches you perform a task and automatically generates a beautiful, step-by-step guide.
 
 *   **Automatic Recording:** Records clicks, navigation, and other interactions while you work.
-*   **AI-Generated Guides:** After stopping the recording, Scribe uses AI to generate clear, human-readable instructions for each step, complete with screenshots.
+*   **AI-Generated Guides:** After stopping the recording, Doc Flow uses AI to generate clear, human-readable instructions for each step, complete with screenshots.
 *   **Advanced AI Actions:**
     *   **Generalize Workflow:** Transforms a specific recording into a reusable, general-purpose template.
     *   **Generate Q&A:** Creates a list of common questions and answers based on the workflow, perfect for training or help docs.
@@ -57,8 +57,8 @@ Scribe watches you perform a task and automatically generates a beautiful, step-
 
 
 ## 🎯 How We Meet the Judging Criteria
-*   **Technological Execution:** I deeply showcase the `languageModel` (Prompt API) for multiple, advanced use cases: generation (audit, scribe guide), summarization (audit, tabs), classification (tabs), and contextual chat. All processing is 100% on-device.
-*   **Purpose:** This project directly improves common user journeys for developers (Auditor), researchers (Organizer), and support/ops teams (Scribe), unlocking capabilities previously impractical on the web due to privacy concerns.
+*   **Technological Execution:** I deeply showcase the `languageModel` (Prompt API) for multiple, advanced use cases: generation (audit, doc flow guide), summarization (audit, tabs), classification (tabs), and contextual chat. All processing is 100% on-device.
+*   **Purpose:** This project directly improves common user journeys for developers (Auditor), researchers (Organizer), and support/ops teams (Doc Flow), unlocking capabilities previously impractical on the web due to privacy concerns.
 *   **Functionality:** The app is highly scalable, analyzing any webpage, managing dozens of tabs, and recording complex workflows. Local history and JSON/PDF exports make it a true power tool.
 *   **User Experience:** A clean, tabbed interface, real-time streaming results, and clear status/error handling make the extension powerful yet simple to use.
 

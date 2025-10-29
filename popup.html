@@ -181,9 +181,9 @@
                 <span>Quick Audit</span>
             </button>
 
-            <button id="startScribe" class="btn">
+            <button id="startDocFlow" class="btn">
                 <span class="btn-icon">📝</span>
-                <span>Start Scribe</span>
+                <span>Start Doc Flow</span>
             </button>
 
             <button id="organizeTabs" class="btn">
@@ -199,7 +199,7 @@
                 <span class="keyboard-shortcut">⌘+⇧+A</span>
             </div>
             <div class="shortcut-item">
-                <span>Start Scribe</span>
+                <span>Start Doc Flow</span>
                 <span class="keyboard-shortcut">⌘+⇧+S</span>
             </div>
             <div class="shortcut-item">
@@ -239,10 +239,11 @@
             }, 100);
         });
 
-        document.getElementById('startScribe').addEventListener('click', () => {
+        document.getElementById('startDocFlow').addEventListener('click', () => {
             chrome.sidePanel.open({ windowId: chrome.windows.WINDOW_ID_CURRENT });
             setTimeout(() => {
-                chrome.runtime.sendMessage({ action: 'startScribe' });
+                // trigger Doc Flow recording via service worker
+                chrome.runtime.sendMessage({ action: 'startDocFlowRecording' });
             }, 100);
         });
 

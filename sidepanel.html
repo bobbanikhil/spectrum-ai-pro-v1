@@ -42,8 +42,8 @@
             <button class="tab-link" role="tab" data-tab="organizer" aria-selected="false">
                 📂 Organizer
             </button>
-            <button class="tab-link" role="tab" data-tab="scribe" aria-selected="false">
-                📝 Scribe
+            <button class="tab-link" role="tab" data-tab="docFlow" aria-selected="false">
+                📝 Doc Flow
             </button>
             <button class="tab-link" role="tab" data-tab="history" aria-selected="false">
                 🕒 History
@@ -115,16 +115,16 @@
                         </div>
                     </div>
 
-                    <div id="scribe" class="tab-content" role="tabpanel" hidden>
+                    <div id="docFlow" class="tab-content" role="tabpanel" hidden>
                         <div class="action-panel">
-                            <button id="startScribeButton" class="btn-primary">
+                            <button id="startDocFlowButton" class="btn-primary">
                                 🎬 Start Recording
                             </button>
-                            <button id="stopScribeButton" class="btn-danger" style="display: none;">
+                            <button id="stopDocFlowButton" class="btn-danger" style="display: none;">
                                 ⏹️ Stop & Generate
                             </button>
 
-                            <div id="scribeActionsPanel" class="action-panel-grid" style="display: none;">
+                            <div id="docFlowActionsPanel" class="action-panel-grid" style="display: none;">
                                 <button id="generalizeWorkflowButton" class="ai-action-button">
                                     🔧 Generalize
                                 </button>
@@ -136,18 +136,17 @@
                                 </button>
                             </div>
                         </div>
-
-                        <div id="scribeStatus" class="status-message info" style="display: none;">
-                            <span id="scribeStatusText">Ready to record</span>
+                        <div id="docFlowStatus" class="status-message info" style="display: none;">
+                            <span id="docFlowStatusText">Ready to record</span>
                         </div>
 
-                        <div id="scribeLoader" class="loader"></div>
+                        <div id="docFlowLoader" class="loader"></div>
 
-                        <div id="scribeChatContainer" class="chat-container" style="display: none;">
-                            <div class="chat-messages" id="scribeChatMessages"></div>
+                        <div id="docFlowChatContainer" class="chat-container" style="display: none;">
+                            <div class="chat-messages" id="docFlowChatMessages"></div>
                             <div class="chat-input-area">
-                                <input type="text" id="scribeChatInput" class="chat-input" placeholder="Ask about the guide...">
-                                <button id="scribeChatSend" class="chat-send-btn">➤</button>
+                                <input type="text" id="docFlowChatInput" class="chat-input" placeholder="Ask about the guide...">
+                                <button id="docFlowChatSend" class="chat-send-btn">➤</button>
                             </div>
                         </div>
                     </div>
@@ -193,7 +192,7 @@
                                 <ul style="text-align: left; display: inline-block; margin-top: 20px;">
                                     <li><strong>🎯 Auditor:</strong> 12-point website analysis</li>
                                     <li><strong>📂 Organizer:</strong> Intelligent tab grouping</li>
-                                    <li><strong>📝 Scribe:</strong> Workflow documentation</li>
+                                    <li><strong>📝 Doc Flow:</strong> Workflow documentation</li>
                                     <li><strong>🕒 History:</strong> Past reports & analyses</li>
                                 </ul>
                             </div>

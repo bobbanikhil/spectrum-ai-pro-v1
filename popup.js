@@ -21,10 +21,11 @@ document.getElementById('quickAudit').addEventListener('click', () => {
     }, 100);
 });
 
-document.getElementById('startScribe').addEventListener('click', () => {
+document.getElementById('startDocFlow').addEventListener('click', () => {
     chrome.sidePanel.open({ windowId: chrome.windows.WINDOW_ID_CURRENT });
     setTimeout(() => {
-        chrome.runtime.sendMessage({ action: 'startScribe' });
+        // trigger Doc Flow recording via service worker
+        chrome.runtime.sendMessage({ action: 'startDocFlowRecording' });
     }, 100);
 });
 
