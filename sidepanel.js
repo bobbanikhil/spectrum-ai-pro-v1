@@ -194,6 +194,7 @@ function setupEventListeners() {
     if (elements.helpBtn) elements.helpBtn.addEventListener('click', () => alert("Help and documentation coming soon!"));
 }
 
+
 // SWITCH TABS
 function switchTab(tabName) {
     elements.tabs.forEach(tab => {
@@ -213,11 +214,11 @@ function switchTab(tabName) {
 async function checkAIAvailability() {
     try {
         if (typeof self.ai !== 'undefined' && self.ai.languageModel) {
-            const testSession = await self.ai.languageModel.create({ language: 'en' });
+            const testSession = await self.ai.languageModel.create({ language: 'en', outputLanguage: 'en' });
             testSession.destroy();
             return true;
         } else if (typeof self.LanguageModel !== 'undefined') {
-            const testSession = await self.LanguageModel.create({ language: 'en' });
+            const testSession = await self.LanguageModel.create({ language: 'en', outputLanguage: 'en' });
             testSession.destroy();
             return true;
         } else {
@@ -247,16 +248,18 @@ async function runAudit() {
             throw new Error('Page content is empty');
         }
 
+        // Clear previous results and show loader
+        elements.results.innerHTML = '';
+        elements.results.style.display = 'block'; // Ensure detailed report is visible
+
         const report = await performAudit(content.substring(0, 8000));
         currentAuditReport = report;
 
         if (elements.aiActionsPanel) elements.aiActionsPanel.style.display = 'grid'; // Use grid as defined in CSS
         if (elements.auditorChatContainer) elements.auditorChatContainer.style.display = 'block';
         if (elements.copyReportButton) elements.copyReportButton.style.display = 'block';
-        // Also show new export buttons
         if (elements.downloadPdfButton) elements.downloadPdfButton.style.display = 'block';
         if (elements.downloadJsonButton) elements.downloadJsonButton.style.display = 'block';
-
 
         updateStatus('audit', 'Audit complete!', 'success');
         await saveAudit(url, report);
@@ -270,6 +273,7 @@ async function runAudit() {
         showLoader('audit', false);
     }
 }
+
 
 async function performAudit(content) {
     const session = await createAISession();
@@ -288,17 +292,7 @@ async function performAudit(content) {
         const area = auditAreas[i];
         updateStatus('audit', `Analyzing ${i + 1}/${auditAreas.length}: ${area}...`, 'info');
 
-        const prompt = `You are an expert web auditor. Analyze the following page content for **${area}**.
-
-**CRITICAL RULES:**
-- Start with the section header: ## ${area} [X/10]
-- Provide a score out of 10 in the header.
-- Follow with "### Assessment", "### Key Issues", and "### Recommendation".
-- Use bullet points for issues and recommendations.
-- Be concise and actionable.
-
-PAGE CONTENT:
-${content}`;
+        const prompt = `You are an expert web auditor. Analyze the following page content for **${area}**.\n\n**CRITICAL RULES:**\n- Start with the section header: ## ${area} [X/10]\n- Provide a score out of 10 in the header.\n- Follow with "### Assessment", "### Key Issues", and "### Recommendation".\n- Use bullet points for issues and recommendations.\n- Be concise and actionable.\n\nPAGE CONTENT:\n${content}`;
 
         const sectionElement = document.createElement('div');
         sectionElement.className = 'audit-section';
@@ -321,15 +315,7 @@ ${content}`;
 
     // Final summary
     updateStatus('audit', `Generating Executive Summary...`, 'info');
-    const summaryPrompt = `Based on the following audit sections, create a final "## Executive Summary".
-
-Include:
-- **Overall Grade:** (A+ to F)
-- **Top Priority:** (The single most important issue to fix)
-- **Quick Wins:** (2-3 easy-to-implement improvements)
-
-AUDIT SECTIONS:
-${fullReport}`;
+    const summaryPrompt = `Based on the following audit sections, create a final "## Executive Summary".\n\nInclude:\n- **Overall Grade:** (A+ to F)\n- **Top Priority:** (The single most important issue to fix)\n- **Quick Wins:** (2-3 easy-to-implement improvements)\n\nAUDIT SECTIONS:\n${fullReport}`;
 
     const summaryElement = document.createElement('div');
     summaryElement.className = 'audit-section';
@@ -425,10 +411,11 @@ async function createAISession() {
     if (typeof self.ai !== 'undefined' && self.ai.languageModel) {
         return await self.ai.languageModel.create({
             systemPrompt: 'You are a helpful AI assistant. Provide clear, actionable advice.',
-            language: 'en'
+            language: 'en',
+            outputLanguage: 'en'
         });
     } else if (typeof self.LanguageModel !== 'undefined') {
-        return await self.LanguageModel.create({ language: 'en' });
+        return await self.LanguageModel.create({ language: 'en', outputLanguage: 'en' });
     }
     throw new Error('AI not available');
 }
@@ -501,7 +488,6 @@ function renderMarkdown(text) {
     return marked.parse(text);
 }
 
-console.log('✅ Spectrum AI Pro V3.0 JavaScript fully loaded - All parts');
 // ORGANIZER FUNCTIONS
 
 // Organize open tabs into groups with AI assistance
@@ -564,10 +550,14 @@ Return ONLY the JSON array.`;
         session.destroy();
 
         // Extract JSON array from response
-        const jsonMatch = result.match(/\[[\s\S]*\]/);
-        if (!jsonMatch) throw new Error('Invalid AI response format');
+        // Regex to extract JSON from a Markdown code block
+        const jsonCodeBlockRegex = /```json\n([\s\S]*?)\n```/;
+        const jsonMatch = result.match(jsonCodeBlockRegex);
 
-        const groups = JSON.parse(jsonMatch[0]);
+        if (!jsonMatch || !jsonMatch[1]) throw new Error('Invalid AI response format: JSON code block not found.');
+
+        const jsonString = jsonMatch[1];
+        const groups = JSON.parse(jsonString); // Parse the extracted JSON string
         currentTabGroups = groups;
 
         displayTabGroups(groups, validTabs);
@@ -824,7 +814,10 @@ async function generateQa() {
         return `Step ${i + 1}: ${step.type} on ${step.selector || step.url || step.text}`;
     }).join('\n');
 
-    const prompt = `Generate a list of 5-10 relevant Questions and Answers (Q&A) based on the following user workflow. This Q&A should be useful for training purposes or understanding the workflow. Format the output in Markdown with clear questions and answers.\n\nWORKFLOW STEPS:\n${stepDescriptions}`;
+    const prompt = `Generate a list of 5-10 relevant Questions and Answers (Q&A) based on the following user workflow. This Q&A should be useful for training purposes or understanding the workflow. Format the output in Markdown with clear questions and answers.
+
+WORKFLOW STEPS:
+${stepDescriptions}`;
 
     await runAIActionStreaming(prompt, 'Generating Q&A...', 'scribe', '❓ Workflow Q&A');
 }
@@ -897,7 +890,7 @@ async function stopScribe() {
 
     } catch (error) {
         console.error('Stop scribe error:', error);
-        updateStatus('scribe', 'Failed to process', 'error');
+        updateStatus('scribe', `Failed to process: ${error.message}`, 'error');
     } finally {
         showLoader('scribe', false);
     }
@@ -1205,3 +1198,131 @@ async function importHistory() {
         updateStatus('history', `Failed to initiate import: ${error.message}`, 'error');
     }
 }
+
+async function loadHistory() {
+    try {
+        const { history = [] } = await chrome.storage.local.get('history');
+
+        if (history.length === 0) {
+            if (elements.results) {
+                elements.results.innerHTML = `
+                    <div class="placeholder">
+                        <div style="font-size: 64px;">🕒</div>
+                        <h2>No History Yet</h2>
+                        <p>Past reports will appear here</p>
+                    </div>
+                `;
+            }
+            return;
+        }
+
+        let html = '<div class="report-container">';
+
+        history.forEach(item => {
+            html += `
+                <div class="history-item" data-history-id="${item.id}">
+                    <div class="history-item-url">${escapeHtml(item.url)}</div>
+                    <div class="history-item-date">${new Date(item.date).toLocaleString()}</div>
+                </div>
+            `;
+        });
+
+        html += '</div>';
+
+        if (elements.results) elements.results.innerHTML = html;
+
+        setupHistoryEventDelegation();
+
+    } catch (error) {
+        console.error('Load history error:', error);
+    }
+}
+
+// Setup click events for history list
+function setupHistoryEventDelegation() {
+    const resultsContainer = elements.results;
+    if (!resultsContainer) return;
+
+    // Remove old listener if any
+    if (resultsContainer._historyListener) {
+        resultsContainer.removeEventListener('click', resultsContainer._historyListener);
+    }
+
+    const newListener = async (e) => {
+        const historyItem = e.target.closest('[data-history-id]');
+        if (!historyItem) return;
+
+        const id = historyItem.dataset.historyId;
+        await loadAuditFromHistory(id);
+    };
+
+    resultsContainer._historyListener = newListener;
+    resultsContainer.addEventListener('click', newListener);
+}
+
+// Load specific audit report from history by id
+async function loadAuditFromHistory(id) {
+    try {
+        const { history = [] } = await chrome.storage.local.get('history');
+        const item = history.find(h => h.id === id);
+
+        if (item) {
+            currentAuditReport = item.report;
+            currentAuditUrl = item.url;
+
+            if (elements.results) elements.results.innerHTML = `<div class="results-wrapper">${renderMarkdown(item.report)}</div>`;
+
+            if (elements.aiActionsPanel) elements.aiActionsPanel.style.display = 'block';
+            if (elements.auditorChatContainer) elements.auditorChatContainer.style.display = 'block';
+            if (elements.copyReportButton) elements.copyReportButton.style.display = 'block';
+
+            updateStatus('audit', `Loaded from ${new Date(item.date).toLocaleDateString()}`, 'info');
+
+            switchTab('auditor');
+        }
+    } catch (error) {
+        console.error('Load audit error:', error);
+    }
+}
+
+// Search history UI based on input
+function searchHistory(e) {
+    const searchTerm = e.target.value.toLowerCase();
+    const historyItems = document.querySelectorAll('.history-item');
+
+    historyItems.forEach(item => {
+        const url = item.querySelector('.history-item-url').textContent.toLowerCase();
+        item.style.display = url.includes(searchTerm) ? 'block' : 'none';
+    });
+}
+
+// Clear entire history (prompt user for confirmation)
+async function clearHistory() {
+    if (confirm('Clear all history?')) {
+        await chrome.storage.local.set({ history: [] });
+        loadHistory();
+    }
+}
+
+// Save audit report to history in chrome storage
+async function saveAudit(url, report) {
+    try {
+        const { history = [] } = await chrome.storage.local.get('history');
+
+        const newEntry = {
+            id: Date.now().toString(),
+            url,
+            report,
+            date: new Date().toISOString()
+        };
+
+        history.unshift(newEntry);
+        if (history.length > 100) history.pop(); // Keep max 100 entries
+
+        await chrome.storage.local.set({ history });
+    } catch (error) {
+        console.error('Save audit error:', error);
+    }
+}
+
+console.log('✅ Spectrum AI Pro V3.0 JavaScript fully loaded - All parts');
