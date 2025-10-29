@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "Spectrum AI Pro Enhanced",
-  "version": "3.2.1",
-  "description": "Advanced AI-powered web analysis with Gemini Nano integration",
+  "name": "Spectrum AI Pro",
+  "version": "2.0",
+  "description": "Professional on-device AI assistant for web auditing, content analysis, and workflow automation with Google-grade accuracy.",
   "permissions": [
     "sidePanel",
     "contextMenus",
@@ -11,10 +11,11 @@
     "storage",
     "tabs",
     "tabGroups",
+    "pageCapture",
     "languageModel",
-    "tts",
+    "alarms",
     "notifications",
-    "downloads"
+    "action"
   ],
   "host_permissions": [
     "<all_urls>"
@@ -26,7 +27,7 @@
     "default_path": "sidepanel.html"
   },
   "action": {
-    "default_title": "Open Spectrum AI Pro Enhanced",
+    "default_title": "Open Spectrum AI Pro",
     "default_popup": "popup.html"
   },
   "icons": {
@@ -36,16 +37,8 @@
   },
   "web_accessible_resources": [
     {
-      "resources": [
-        "Content Scripts/scribe.css",
-        "sidepanel.css",
-        "Content Scripts/scribe-content.js",
-        "chart.umd.min.js",
-        "jspdf.umd.min.js"
-      ],
-      "matches": [
-        "<all_urls>"
-      ]
+      "resources": ["scribe.css"],
+      "matches": ["<all_urls>"]
     }
   ],
   "options_page": "setup.html",
@@ -55,7 +48,7 @@
         "default": "Ctrl+Shift+A",
         "mac": "Command+Shift+A"
       },
-      "description": "Run website audit"
+      "description": "Run comprehensive page audit"
     },
     "start-scribe": {
       "suggested_key": {
@@ -69,10 +62,7 @@
         "default": "Ctrl+Shift+O",
         "mac": "Command+Shift+O"
       },
-      "description": "Organize tabs"
+      "description": "Organize tabs with AI"
     }
-  },
-  "content_security_policy": {
-    "extension_pages": "script-src 'self'; object-src 'self'"
   }
 }

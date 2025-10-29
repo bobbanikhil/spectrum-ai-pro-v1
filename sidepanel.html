@@ -4,274 +4,209 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Spectrum AI Pro</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="sidepanel.css">
 </head>
 <body>
-    <div class="app-container view-split">
+    <!-- Background Aurora Effect -->
+    <div id="background-aurora"></div>
+
+    <!-- Main Container -->
+    <div class="container">
         <!-- Header -->
-        <header class="app-header">
-            <div class="header-content">
-                <div class="logo-section">
-                    <div class="logo-icon">🌈</div>
-                    <h1 class="app-title">Spectrum AI Pro</h1>
-                </div>
-            </div>
+        <header class="header">
+            <h1>✨ Spectrum AI Pro</h1>
+<!--            <p>Professional Web Intelligence Suite</p>-->
         </header>
 
-        <!-- View Controls -->
-        <div class="view-controls">
-            <button class="view-mode-btn active" data-mode="split">Split View</button>
-            <button class="view-mode-btn" data-mode="results">Report Only</button>
-            <button class="view-mode-btn" data-mode="chat">Chat Only</button>
+        <!-- View Mode Selector -->
+        <div class="view-mode-selector">
+            <button class="view-mode-btn active" data-mode="split">
+                📊 Split View
+            </button>
+            <button class="view-mode-btn" data-mode="results">
+                📄 Report Only
+            </button>
+            <button class="view-mode-btn" data-mode="chat">
+                💬 Chat Only
+            </button>
+        </div>
+
+        <!-- Tab Navigation -->
+        <div class="tabs" role="tablist">
+            <button class="tab-link active" role="tab" data-tab="auditor" aria-selected="true">
+                🎯 Auditor
+            </button>
+            <button class="tab-link" role="tab" data-tab="organizer" aria-selected="false">
+                📂 Organizer
+            </button>
+            <button class="tab-link" role="tab" data-tab="scribe" aria-selected="false">
+                📝 Scribe
+            </button>
+            <button class="tab-link" role="tab" data-tab="history" aria-selected="false">
+                🕒 History
+            </button>
         </div>
 
         <!-- Content Wrapper -->
-        <div class="content-wrapper">
-            <!-- Control Panel -->
-            <aside class="control-panel">
-                <!-- Tab Navigation -->
-                <nav class="tab-navigation">
-                    <button class="tab-link active" data-tab="auditor">🎯 Auditor</button>
-                    <button class="tab-link" data-tab="organizer">📂 Organizer</button>
-                    <button class="tab-link" data-tab="scribe">📝 Scribe</button>
-                    <button class="tab-link" data-tab="history">🕒 History</button>
-                </nav>
-
-                <!-- Tab Panels -->
-                <div class="tab-panels">
-                    <!-- Auditor Tab -->
-                    <div id="auditor" class="tab-content active">
-                        <div class="panel-section">
-                            <h3 class="section-title">Website Analysis</h3>
-                            <button id="auditButton" class="primary-button">
+        <div class="content-wrapper split-view">
+            <!-- LEFT PANEL - Chat & Actions -->
+            <div class="chat-panel panel">
+                <div class="panel-header">
+                    💬 AI Assistant
+                </div>
+                <div class="panel-content">
+                    <!-- Tab-Specific Content -->
+                    <div id="auditor" class="tab-content active" role="tabpanel">
+                        <div class="action-panel">
+                            <button id="auditButton" class="btn-primary">
                                 🚀 Run 12-Point Audit
                             </button>
-                        </div>
 
-                        <!-- AI Warning Banner -->
-                        <div id="aiWarningBanner" class="status-message warning" style="display: none;">
-                            <span id="aiWarningText">Checking AI status...</span>
-                        </div>
-
-                        <!-- Auditor Chat -->
-                        <div id="auditorChatContainer" class="chat-container">
-                            <div id="auditorChatMessages" class="chat-messages"></div>
-                            <div class="chat-input-wrapper">
-                                <input type="text" id="auditorChatInput" class="chat-input"
-                                       placeholder="Ask about the audit results...">
-                                <button id="auditorChatSend" class="chat-send-btn">Send</button>
+                            <div id="aiActionsPanel" class="action-panel-grid" style="display: none;">
+                                <button id="summarizeButton" class="ai-action-button">
+                                    📋 Summarize
+                                </button>
+                                <button id="proofreadButton" class="ai-action-button">
+                                    ✏️ Proofread
+                                </button>
+                                <button id="rewriteTitleButton" class="ai-action-button">
+                                    💡 Titles
+                                </button>
                             </div>
                         </div>
-                        <button id="auditorChatClear" class="secondary-button">Clear Chat</button>
+
+                        <div id="auditStatus" class="status-message info" style="display: none;">
+                            <span id="statusText">Ready to analyze</span>
+                        </div>
+
+                        <div id="auditLoader" class="loader"></div>
+
+                        <div id="auditorChatContainer" class="chat-container" style="display: none;">
+                            <div class="chat-messages" id="auditorChatMessages"></div>
+                            <div class="chat-input-area">
+                                <input type="text" id="auditorChatInput" class="chat-input" placeholder="Ask about the audit...">
+                                <button id="auditorChatSend" class="chat-send-btn">➤</button>
+                            </div>
+                        </div>
                     </div>
 
-                    <!-- Organizer Tab -->
-                    <div id="organizer" class="tab-content">
-                        <div class="panel-section">
-                            <h3 class="section-title">Tab Management</h3>
-                            <button id="organizeTabsButton" class="primary-button">
+                    <div id="organizer" class="tab-content" role="tabpanel" hidden>
+                        <div class="action-panel">
+                            <button id="organizeTabsButton" class="btn-primary">
                                 📂 Analyze & Group Tabs
                             </button>
                         </div>
 
-                        <!-- Organizer Actions -->
-                        <div id="organizerActionsPanel" class="panel-section" style="display: none;">
-                            <h3 class="section-title">Group Actions</h3>
-                            <div class="ai-actions">
-                                <button id="summarizeGroupButton" class="ai-action-button" disabled>
-                                    📄 Summarize Group
-                                </button>
-                                <button id="extractDataButton" class="ai-action-button" disabled>
-                                    📊 Extract Data
-                                </button>
-                                <button id="findContactsButton" class="ai-action-button" disabled>
-                                    👤 Find Contacts
-                                </button>
-                                <button id="analyzeContentButton" class="ai-action-button" disabled>
-                                    🔬 Analyze Content
-                                </button>
-                            </div>
+                        <div id="organizerStatus" class="status-message info" style="display: none;">
+                            <span id="organizerStatusText">Ready to organize tabs</span>
                         </div>
 
-                        <!-- Organizer Chat -->
-                        <div id="organizerChatContainer" class="chat-container">
-                            <div id="organizerChatMessages" class="chat-messages"></div>
-                            <div class="chat-input-wrapper">
-                                <input type="text" id="organizerChatInput" class="chat-input"
-                                       placeholder="Ask about tab groups...">
-                                <button id="organizerChatSend" class="chat-send-btn">Send</button>
+                        <div id="organizerLoader" class="loader"></div>
+
+                        <div id="organizerChatContainer" class="chat-container" style="display: none;">
+                            <div class="chat-messages" id="organizerChatMessages"></div>
+                            <div class="chat-input-area">
+                                <input type="text" id="organizerChatInput" class="chat-input" placeholder="Ask about tabs...">
+                                <button id="organizerChatSend" class="chat-send-btn">➤</button>
                             </div>
                         </div>
-                        <button id="organizerChatClear" class="secondary-button">Clear Chat</button>
                     </div>
 
-                    <!-- Scribe Tab -->
-                    <div id="scribe" class="tab-content">
-                        <div class="panel-section">
-                            <h3 class="section-title">Workflow Recording</h3>
-                            <button id="startScribeButton" class="primary-button">
+                    <div id="scribe" class="tab-content" role="tabpanel" hidden>
+                        <div class="action-panel">
+                            <button id="startScribeButton" class="btn-primary">
                                 🎬 Start Recording
                             </button>
-                            <button id="stopScribeButton" class="secondary-button" disabled style="display: none;">
+                            <button id="stopScribeButton" class="btn-danger" style="display: none;">
                                 ⏹️ Stop & Generate
                             </button>
-                            <button id="clearScribeButton" class="secondary-button">
-                                🗑️ Clear Steps
+
+                            <div id="scribeActionsPanel" class="action-panel-grid" style="display: none;">
+                                <button id="generalizeWorkflowButton" class="ai-action-button">
+                                    🔧 Generalize
+                                </button>
+                                <button id="generateQaButton" class="ai-action-button">
+                                    ❓ Generate Q&A
+                                </button>
+                                <button id="downloadPdfButton" class="ai-action-button">
+                                    📥 PDF
+                                </button>
+                            </div>
+                        </div>
+
+                        <div id="scribeStatus" class="status-message info" style="display: none;">
+                            <span id="scribeStatusText">Ready to record</span>
+                        </div>
+
+                        <div id="scribeLoader" class="loader"></div>
+
+                        <div id="scribeChatContainer" class="chat-container" style="display: none;">
+                            <div class="chat-messages" id="scribeChatMessages"></div>
+                            <div class="chat-input-area">
+                                <input type="text" id="scribeChatInput" class="chat-input" placeholder="Ask about the guide...">
+                                <button id="scribeChatSend" class="chat-send-btn">➤</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="history" class="tab-content" role="tabpanel" hidden>
+                        <div class="history-controls">
+                            <input type="search" id="historySearchInput" class="search-input" placeholder="Search by URL...">
+                            <button id="clearHistoryButton" class="btn-secondary">
+                                🗑️ Clear
+                            </button>
+                            <button id="exportHistoryButton" class="btn-secondary">
+                                📤 Export
+                            </button>
+                            <button id="importHistoryButton" class="btn-secondary">
+                                📥 Import
                             </button>
                         </div>
-
-                        <!-- Scribe Actions -->
-                        <div id="scribeActionsPanel" class="panel-section" style="display: none;">
-                            <h3 class="section-title">AI Tools</h3>
-                            <div class="ai-actions">
-                                <button id="generalizeWorkflowButton" class="ai-action-button" disabled>
-                                    🔧 Generalize Workflow
-                                </button>
-                                <button id="analyzeWorkflowButton" class="ai-action-button" disabled>
-                                    💡 Analyze & Optimize
-                                </button>
-                            </div>
-                        </div>
-
-                        <!-- Export Buttons -->
-                        <div class="panel-section">
-                            <h3 class="section-title">Export</h3>
-                            <div class="ai-actions">
-                                <button id="exportScribeTxtButton" class="ai-action-button" disabled>
-                                    📄 Export as TXT
-                                </button>
-                                <button id="exportScribeJsonButton" class="ai-action-button" disabled>
-                                    📋 Export as JSON
-                                </button>
-                                <button id="exportScribePdfButton" class="ai-action-button" disabled>
-                                    📑 Export as PDF
-                                </button>
-                            </div>
-                        </div>
-
-                        <!-- Scribe Chat -->
-                        <div id="scribeChatContainer" class="chat-container" style="display: none;">
-                            <div id="scribeChatMessages" class="chat-messages"></div>
-                            <div class="chat-input-wrapper">
-                                <input type="text" id="scribeChatInput" class="chat-input"
-                                       placeholder="Ask about the workflow...">
-                                <button id="scribeChatSend" class="chat-send-btn">Send</button>
-                            </div>
-                        </div>
-                        <button id="scribeChatClear" class="secondary-button" style="display: none;">Clear Chat</button>
-                    </div>
-
-                    <!-- History Tab -->
-                    <div id="history" class="tab-content">
-                        <div class="panel-section">
-                            <h3 class="section-title">Audit History</h3>
-                            <input type="text" id="historySearchInput" class="search-input"
-                                   placeholder="Search history...">
-                        </div>
-
-                        <div class="panel-section">
-                            <div class="ai-actions">
-                                <button id="exportHistoryButton" class="ai-action-button">
-                                    📥 Export History
-                                </button>
-                                <button id="importHistoryButton" class="ai-action-button">
-                                    📤 Import History
-                                </button>
-                                <button id="clearHistoryButton" class="ai-action-button">
-                                    🗑️ Clear All
-                                </button>
-                            </div>
-                        </div>
                     </div>
                 </div>
-            </aside>
-
-            <!-- Results Panel -->
-            <section class="results-panel">
-                <!-- Results Header -->
-                <div class="results-header">
-                    <h2 id="resultsTitle" class="results-title">📊 Audit Results</h2>
-                    <button id="settingsBtn" class="icon-button">⚙️ Settings</button>
-                </div>
-
-                <!-- Results Content -->
-                <div class="results-content">
-                    <!-- Status Messages -->
-                    <div id="auditStatus" class="status-message" style="display: none;">
-                        <div class="loader"></div>
-                        <span id="auditStatusText"></span>
-                    </div>
-
-                    <div id="organizerStatus" class="status-message" style="display: none;">
-                        <div class="loader"></div>
-                        <span id="organizerStatusText"></span>
-                    </div>
-
-                    <div id="scribeStatus" class="status-message" style="display: none;">
-                        <div class="loader"></div>
-                        <span id="scribeStatusText"></span>
-                    </div>
-
-                    <!-- Dashboard (Auditor) -->
-                    <div id="dashboardContainer" style="display: none;"></div>
-
-                    <!-- Main Results Areas -->
-                    <div id="auditorResults" class="placeholder">
-                        <div class="placeholder-icon">🎯</div>
-                        <h2>Website Auditor</h2>
-                        <p>Click "Run 12-Point Audit" to analyze the current page</p>
-                    </div>
-
-                    <div id="organizerResults" class="placeholder" style="display: none;">
-                        <div class="placeholder-icon">📂</div>
-                        <h2>Tab Organizer</h2>
-                        <p>Click "Analyze & Group Tabs" to organize your tabs</p>
-                    </div>
-
-                    <div id="scribeResults" class="placeholder" style="display: none;">
-                        <div class="placeholder-icon">📝</div>
-                        <h2>Workflow Scribe</h2>
-                        <p>Click "Start Recording" to document a workflow</p>
-                    </div>
-
-                    <div id="scribeActionResults" style="display: none;"></div>
-                    <div id="groupActionResults" style="display: none;"></div>
-
-                    <div id="historyList" class="placeholder" style="display: none;">
-                        <div class="placeholder-icon">🕒</div>
-                        <h2>No History Yet</h2>
-                        <p>Run an audit to start building your history</p>
-                    </div>
-                </div>
-            </section>
-        </div>
-    </div>
-
-    <!-- Settings Modal -->
-    <div id="modal" class="modal" style="display: none;">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2>⚙️ Settings</h2>
-                <button id="modalCloseBtn" class="icon-button">×</button>
             </div>
-            <div id="modalContent" class="modal-body"></div>
-            <div class="modal-footer">
-                <button id="saveSettingsButton" class="primary-button">Save Settings</button>
-                <button id="cancelSettingsButton" class="secondary-button">Cancel</button>
+
+            <!-- RIGHT PANEL - Results -->
+            <div class="results-panel panel">
+                <div class="panel-header">
+                    📊 Results & Reports
+                    <button id="copyReportButton" class="copy-btn" style="display: none;">
+                        📋 Copy
+                    </button>
+                    <button id="downloadPdfButton" class="copy-btn" style="display: none;">
+                        📥 PDF
+                    </button>
+                    <button id="downloadJsonButton" class="copy-btn" style="display: none;">
+                        📥 JSON
+                    </button>
+                </div>
+                <div class="panel-content">
+                    <div class="results-container">
+                        <div id="results" class="report-container">
+                            <div class="placeholder">
+                                <div style="font-size: 64px; margin-bottom: 20px;">🔮</div>
+                                <h2>Welcome to Spectrum AI Pro</h2>
+                                <p>Select an action from the left panel to begin</p>
+                                <ul style="text-align: left; display: inline-block; margin-top: 20px;">
+                                    <li><strong>🎯 Auditor:</strong> 12-point website analysis</li>
+                                    <li><strong>📂 Organizer:</strong> Intelligent tab grouping</li>
+                                    <li><strong>📝 Scribe:</strong> Workflow documentation</li>
+                                    <li><strong>🕒 History:</strong> Past reports & analyses</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
 
- <!-- In sidepanel.html, load scripts in this EXACT order: -->
-<script src="utils.js"></script>
-<script src="AIManager.js"></script>  <!-- NOT AIManager.js -->
-<script src="main.js"></script>        <!-- LOAD THIS, not main.js or sidepanel-core.js -->
-<script src="sidepanel-auditor.js"></script>
-<script src="sidepanel-organizer.js"></script>
-<script src="sidepanel-scribe.js"></script>
-<script src="sidepanel-chat.js"></script>
-<script src="sidepanel-history.js"></script>
-<script src="sidepanel-modal.js"></script>
-<script src="jspdf.umd.min.js"></script>
+    <script src="marked.min.js"></script>
+    <script src="jspdf.umd.min.js"></script>
+    <script src="chart.umd.min.js"></script>
+    <script src="sidepanel.js"></script>
 </body>
 </html>

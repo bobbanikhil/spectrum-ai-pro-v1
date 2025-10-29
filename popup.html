@@ -3,194 +3,255 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Spectrum AI Pro Enhanced</title>
+    <title>Spectrum AI Pro</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
+        :root {
+            --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            --color-primary: #0b57d0;
+            --color-secondary: #09864d;
+            --color-surface: #ffffff;
+            --color-on-surface: #1f1f1f;
+            --color-on-surface-variant: #5e5e5e;
+            --color-outline: #e8eaed;
+            --radius-md: 8px;
+            --radius-lg: 12px;
+            --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+            --spacing-sm: 8px;
+            --spacing-md: 16px;
+            --spacing-lg: 24px;
+        }
+
         body {
+            font-family: var(--font-family);
             width: 350px;
-            padding: 0;
             margin: 0;
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: #1a202c;
-            color: #e5e7eb;
+            padding: 0;
+            background: var(--color-surface);
+            color: var(--color-on-surface);
         }
 
-        .popup-header {
-            background: linear-gradient(135deg, #3b82f6 0%, #6366f1 100%);
-            padding: 20px;
+        .container {
+            padding: var(--spacing-md);
+        }
+
+        .header {
             text-align: center;
-            color: white;
+            margin-bottom: var(--spacing-md);
+            padding-bottom: var(--spacing-md);
+            border-bottom: 1px solid var(--color-outline);
         }
 
-        .popup-title {
-            font-size: 18px;
+        .header h1 {
+            margin: 0;
+            font-size: 1.5rem;
             font-weight: 700;
-            margin: 0 0 8px 0;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
+            background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-secondary) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
         }
 
-        .popup-subtitle {
-            font-size: 14px;
-            opacity: 0.9;
-            margin: 0;
+        .header p {
+            margin: 4px 0 0 0;
+            color: var(--color-on-surface-variant);
+            font-size: 0.875rem;
         }
 
-        .popup-content {
-            padding: 20px;
-        }
-
-        .feature-list {
-            list-style: none;
-            padding: 0;
-            margin: 0;
-        }
-
-        .feature-item {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            padding: 12px 0;
-            border-bottom: 1px solid #374151;
-        }
-
-        .feature-item:last-child {
-            border-bottom: none;
-        }
-
-        .feature-icon {
-            font-size: 20px;
-            width: 24px;
-            text-align: center;
-        }
-
-        .feature-text {
-            flex: 1;
-            font-size: 14px;
-        }
-
-        .feature-desc {
-            font-size: 12px;
-            color: #9ca3af;
-            margin-top: 2px;
-        }
-
-        .quick-actions {
-            margin-top: 20px;
+        .actions {
             display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 12px;
+            gap: var(--spacing-sm);
+            margin-bottom: var(--spacing-md);
         }
 
-        .quick-btn {
-            padding: 12px 16px;
+        .btn {
+            background: var(--color-primary);
+            color: white;
             border: none;
-            border-radius: 8px;
-            font-size: 13px;
+            padding: 12px var(--spacing-md);
+            border-radius: var(--radius-md);
             font-weight: 500;
             cursor: pointer;
-            transition: all 0.2s;
+            text-align: left;
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-sm);
+            transition: all 0.2s ease;
+            font-size: 0.875rem;
+        }
+
+        .btn:hover {
+            background: #0a4fc0;
+            transform: translateY(-1px);
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+        }
+
+        .btn-secondary:hover {
+            background: #5a6268;
+        }
+
+        .btn-icon {
+            font-size: 1.2rem;
+            width: 20px;
             text-align: center;
         }
 
-        .quick-btn.primary {
-            background: #3b82f6;
-            color: white;
+        .shortcuts {
+            background: #f8f9fa;
+            padding: var(--spacing-md);
+            border-radius: var(--radius-lg);
+            margin-top: var(--spacing-md);
         }
 
-        .quick-btn.primary:hover {
-            background: #2563eb;
-            transform: translateY(-1px);
+        .shortcuts h3 {
+            margin: 0 0 var(--spacing-sm) 0;
+            color: var(--color-primary);
+            font-size: 0.875rem;
+            font-weight: 600;
         }
 
-        .quick-btn.secondary {
-            background: #374151;
-            color: #e5e7eb;
-            border: 1px solid #4b5563;
+        .shortcut-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 4px;
+            font-size: 0.8rem;
         }
 
-        .quick-btn.secondary:hover {
-            background: #4b5563;
-            transform: translateY(-1px);
+        .keyboard-shortcut {
+            background: white;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 0.75rem;
+            border: 1px solid var(--color-outline);
+        }
+
+        .status {
+            text-align: center;
+            padding: var(--spacing-sm);
+            border-radius: var(--radius-md);
+            margin-top: var(--spacing-md);
+            font-size: 0.8rem;
+        }
+
+        .status-ready {
+            background: #e8f5e8;
+            color: #1e8e3e;
+            border: 1px solid #1e8e3e;
+        }
+
+        .status-not-ready {
+            background: #ffebee;
+            color: #d32f2f;
+            border: 1px solid #d32f2f;
         }
 
         .footer {
-            padding: 16px 20px;
-            background: #2d3748;
-            border-top: 1px solid #374151;
             text-align: center;
-            font-size: 12px;
-            color: #9ca3af;
-        }
-
-        .keyboard-hint {
-            margin-top: 8px;
-            font-size: 11px;
-            color: #6b7280;
+            margin-top: var(--spacing-md);
+            padding-top: var(--spacing-md);
+            border-top: 1px solid var(--color-outline);
+            font-size: 0.75rem;
+            color: var(--color-on-surface-variant);
         }
     </style>
 <base target="_blank">
 </head>
 <body>
-    <div class="popup-header">
-        <h1 class="popup-title">
-            <span>✨</span>
-            Spectrum AI Pro
-        </h1>
-        <p class="popup-subtitle">Professional AI-Powered Web Analysis</p>
-    </div>
+    <div class="container">
+        <div class="header">
+            <h1>Spectrum AI Pro</h1>
+            <p>Professional AI Web Assistant</p>
+        </div>
 
-    <div class="popup-content">
-        <ul class="feature-list">
-            <li class="feature-item">
-                <span class="feature-icon">🎯</span>
-                <div class="feature-text">
-                    <div>12-Point Website Audit</div>
-                    <div class="feature-desc">Comprehensive analysis with AI insights</div>
-                </div>
-            </li>
-            <li class="feature-item">
-                <span class="feature-icon">📂</span>
-                <div class="feature-text">
-                    <div>Intelligent Tab Organizer</div>
-                    <div class="feature-desc">AI-powered tab grouping & analysis</div>
-                </div>
-            </li>
-            <li class="feature-item">
-                <span class="feature-icon">📝</span>
-                <div class="feature-text">
-                    <div>Workflow Scribe</div>
-                    <div class="feature-desc">Automated documentation & guides</div>
-                </div>
-            </li>
-            <li class="feature-item">
-                <span class="feature-icon">🕒</span>
-                <div class="feature-text">
-                    <div>Enhanced History</div>
-                    <div class="feature-desc">Save & manage audit reports</div>
-                </div>
-            </li>
-        </ul>
-
-        <div class="quick-actions">
-            <button class="quick-btn primary" id="openSidePanel">
-                Open Panel
+        <div class="actions">
+            <button id="openSidePanel" class="btn">
+                <span class="btn-icon">🚀</span>
+                <span>Open Full Panel</span>
             </button>
-            <button class="quick-btn secondary" id="runQuickAudit">
-                Quick Audit
+
+            <button id="quickAudit" class="btn">
+                <span class="btn-icon">🎯</span>
+                <span>Quick Audit</span>
+            </button>
+
+            <button id="startScribe" class="btn">
+                <span class="btn-icon">📝</span>
+                <span>Start Scribe</span>
+            </button>
+
+            <button id="organizeTabs" class="btn">
+                <span class="btn-icon">📁</span>
+                <span>Organize Tabs</span>
             </button>
         </div>
 
-        <div class="keyboard-hint">
-            Ctrl+Shift+A: Run Audit | Ctrl+Shift+S: Start Scribe
+        <div class="shortcuts">
+            <h3>Keyboard Shortcuts</h3>
+            <div class="shortcut-item">
+                <span>Run Audit</span>
+                <span class="keyboard-shortcut">⌘+⇧+A</span>
+            </div>
+            <div class="shortcut-item">
+                <span>Start Scribe</span>
+                <span class="keyboard-shortcut">⌘+⇧+S</span>
+            </div>
+            <div class="shortcut-item">
+                <span>Organize Tabs</span>
+                <span class="keyboard-shortcut">⌘+⇧+O</span>
+            </div>
+        </div>
+
+        <div id="aiStatus" class="status status-not-ready">
+            🔴 AI Model Not Available
+        </div>
+
+        <div class="footer">
+            <p>Privacy-first • On-device processing • Professional grade</p>
         </div>
     </div>
 
-    <div class="footer">
-        Professional AI Analysis & Workflow Automation
-    </div>
+    <script>
+        // Check AI availability
+        document.addEventListener('DOMContentLoaded', () => {
+            if (typeof self.LanguageModel !== 'undefined') {
+                document.getElementById('aiStatus').className = 'status status-ready';
+                document.getElementById('aiStatus').textContent = '🟢 AI Ready';
+            }
+        });
 
-    <script src="popup.js"></script>
+        // Button actions
+        document.getElementById('openSidePanel').addEventListener('click', () => {
+            chrome.sidePanel.open({ windowId: chrome.windows.WINDOW_ID_CURRENT });
+        });
+
+        document.getElementById('quickAudit').addEventListener('click', () => {
+            chrome.sidePanel.open({ windowId: chrome.windows.WINDOW_ID_CURRENT });
+            // Send message to run audit
+            setTimeout(() => {
+                chrome.runtime.sendMessage({ action: 'runQuickAudit' });
+            }, 100);
+        });
+
+        document.getElementById('startScribe').addEventListener('click', () => {
+            chrome.sidePanel.open({ windowId: chrome.windows.WINDOW_ID_CURRENT });
+            setTimeout(() => {
+                chrome.runtime.sendMessage({ action: 'startScribe' });
+            }, 100);
+        });
+
+        document.getElementById('organizeTabs').addEventListener('click', () => {
+            chrome.sidePanel.open({ windowId: chrome.windows.WINDOW_ID_CURRENT });
+            setTimeout(() => {
+                chrome.runtime.sendMessage({ action: 'organizeTabs' });
+            }, 100);
+        });
+    </script>
 </body>
 </html>
