@@ -1,4 +1,4 @@
-# Spectrum AI Pro# Spectrum AI Pro
+# Spectrum AI Pro
 
 
 
