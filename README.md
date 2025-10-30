@@ -133,7 +133,7 @@ You can find the full license text below:
 ```
 MIT License
 
-Copyright (c) 2025 Nikhil Bobbana
+Copyright (c) 2025 Vaasu Nikhil Bobba
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
