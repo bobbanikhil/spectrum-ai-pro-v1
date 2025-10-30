@@ -1,13 +1,16 @@
 /**
- * 🏆 SPECTRUM AI PRO V3.2 - FINAL BUGFIX EDITION
+ * 🏆 SPECTRUM AI PRO V3.3 - DASHBOARD EDITION
  * Google Chrome Built-in AI Challenge 2025
  *
- * This version addresses all reported bugs:
- * - Fixed: `checkAIAvailability` now accepts 'available' status (fixes sidepanel.js:304 error).
- * - Fixed: All `createAISession` calls now include `outputLanguage: 'en'` (fixes warning).
+ * This version adds an enhanced dashboard to the Auditor report:
+ * - Added: "Key Metrics" dashboard with Overall Score, Best Area, and Worst Area.
+ * - Added: "Executive Summary" section to the AI prompt for a top-level summary.
+ * - Fixed: `checkAIAvailability` now accepts 'available' status.
+ * - Fixed: All `createAISession` calls now include `outputLanguage: 'en'`.
  * - Fixed: Tab switching (`switchTab`) now correctly clears/restores all UI elements.
- * - Fixed: Organizer (`organizeTabs`) now correctly parses AI JSON responses and is functional.
- * - Fixed: Doc Flow (`generateWorkflowGuide`) is rewritten to be functional and reliable.
+ * - Fixed: Organizer (`organizeTabs`) now correctly parses AI JSON responses.
+ * - Fixed: Doc Flow (`generateWorkflowGuide`) is rewritten to be functional.
+ * - Fixed: Auditor (`runAudit`) uses a single, reliable streaming call.
  */
 
 'use strict';
@@ -33,7 +36,7 @@ const elements = {};
 
 // INITIALIZATION
 document.addEventListener('DOMContentLoaded', async () => {
-    console.log('🚀 Spectrum AI Pro V3.2 - Competition Edition (Bugfixed)');
+    console.log('🚀 Spectrum AI Pro V3.3 - Dashboard Edition');
     cacheElements();
     setupEventListeners();
 
@@ -71,7 +74,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     });
 
-    console.log('✅ Spectrum AI Pro V3.2 ready!');
+    console.log('✅ Spectrum AI Pro V3.3 ready!');
 });
 
 // CACHE DOM ELEMENTS
@@ -323,7 +326,125 @@ async function checkAIAvailability() {
     }
 }
 
-// --- AUDITOR FUNCTIONS ---
+// --- ★★★ AUDITOR FUNCTIONS (REWRITTEN FOR RELIABILITY) ★★★ ---
+
+/**
+ * Parses scores (e.g., "Score: 85/100") from the audit markdown.
+ * @param {string} markdown - The markdown text of the report.
+ * @returns {object} An object of scores, e.g., { SEO: 85, Accessibility: 70 }.
+ */
+function parseScoresFromMarkdown(markdown) {
+    const scores = {};
+    // Regex to find "Score: XX/100" under a heading
+    const regex = /##\s*\d*\.?\s*([a-zA-Z\s/()]+?)\s*\n\*\*Score:\s*(\d+)\/100/g;
+    let match;
+
+    while ((match = regex.exec(markdown)) !== null) {
+        // Clean up the label: "1. SEO (Search Engine Optimization)" -> "SEO"
+        let label = match[1].trim();
+        if (label.includes('(')) {
+            label = label.substring(0, label.indexOf('(')).trim();
+        }
+        if (label.includes('&')) {
+            label = label.substring(0, label.indexOf('&')).trim();
+        }
+
+        const score = parseInt(match[2], 10);
+        scores[label] = score;
+    }
+    return scores;
+}
+
+/**
+ * ★★★ NEW: Creates HTML for the Key Metrics dashboard cards ★★★
+ * @param {object} scores - The scores object from parseScoresFromMarkdown.
+ * @returns {string} HTML string for the metrics cards.
+ */
+function createMetricsDashboardHTML(scores) {
+    let overallScore = 0;
+    let bestArea = { name: 'N/A', score: -1 };
+    let worstArea = { name: 'N/A', score: 101 };
+    let count = 0;
+
+    for (const [name, score] of Object.entries(scores)) {
+        overallScore += score;
+        count++;
+        if (score > bestArea.score) {
+            bestArea = { name, score };
+        }
+        if (score < worstArea.score) {
+            worstArea = { name, score };
+        }
+    }
+
+    if (count > 0) {
+        overallScore = Math.round(overallScore / count);
+    } else {
+        overallScore = 0; // Avoid division by zero
+    }
+
+    const getScoreColor = (score) => {
+        if (score >= 90) return 'var(--success)';
+        if (score >= 50) return 'var(--warning)';
+        return 'var(--error)';
+    };
+
+    // Inline styles for the metric cards, as we can't edit the CSS file
+    const cardContainerStyle = `
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 16px;
+        margin-bottom: 20px;
+    `;
+    const cardStyle = `
+        background-color: #ffffff;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 16px;
+        text-align: center;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    `;
+    const cardTitleStyle = `
+        font-size: 14px;
+        font-weight: 600;
+        color: #475569;
+        margin: 0 0 8px 0;
+    `;
+    const cardValueStyle = (score) => `
+        font-size: 28px;
+        font-weight: 700;
+        color: ${getScoreColor(score)};
+        margin: 0;
+    `;
+     const cardNameStyle = `
+        font-size: 14px;
+        font-weight: 600;
+        color: #1e293b;
+        margin: 0;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    `;
+
+    return `
+        <div style="${cardContainerStyle}">
+            <div style="${cardStyle}">
+                <h4 style="${cardTitleStyle}">Overall Score</h4>
+                <p style="${cardValueStyle(overallScore)}">${overallScore}</p>
+            </div>
+            <div style="${cardStyle}">
+                <h4 style="${cardTitleStyle}">Best Area</h4>
+                <p style="${cardNameStyle}">${bestArea.name}</p>
+            </div>
+            <div style="${cardStyle}">
+                <h4 style="${cardTitleStyle}">Needs Improvement</h4>
+                <p style="${cardNameStyle}">${worstArea.name}</p>
+            </div>
+        </div>
+    `;
+}
+
+
 async function runAudit() {
     if (!await checkAIAvailability()) {
         showError("AI is not available. Please check Chrome flags.", "auditor");
@@ -334,9 +455,12 @@ async function runAudit() {
     elements.auditButton.disabled = true;
     showLoader('audit', true);
     updateStatus('audit', 'Fetching page content...', 'info');
-    currentAuditReport = '';
+    currentAuditReport = ''; // Clear report object
     currentAuditReportHTML = '';
-    elements.results.innerHTML = '<div class="results-wrapper"></div>'; // Clear previous results
+    elements.results.innerHTML = ''; // Clear previous results
+    // Show placeholder instead of skeleton
+    elements.results.innerHTML = getPlaceholderHTML('auditor', 'Running Audit...', 'Please wait while the AI analyzes the page.');
+
 
     let content, url, title;
     try {
@@ -363,19 +487,145 @@ async function runAudit() {
 
     const reportDate = new Date();
     setReportInfo(url, reportDate.toISOString());
+    updateStatus('audit', 'Analyzing with AI...', 'info');
+
+    // ★★★ UPDATED SINGLE-CALL PROMPT (with Executive Summary) ★★★
+    const prompt = `
+        Perform a professional 12-point comprehensive web analysis for the URL: ${url}
+        The user is a project manager or developer.
+        Be critical, professional, and provide actionable insights.
+
+        Here is the page text (first 4000 chars):
+        """
+        ${content.substring(0, 4000)}
+        """
+
+        **FORMATTING RULES (VERY IMPORTANT):**
+        1.  Start with "## 📈 Interactive Score Dashboard".
+        2.  On the next line, add the placeholder: [CHART_PLACEHOLDER]
+        3.  Next, create a H2 (##) for each of the 12 audit points.
+        4.  For each point, provide:
+            - A score (e.g., **Score: 85/100**)
+            - A concise 1-2 sentence analysis.
+            - 2-3 specific, actionable bullet points for improvement.
+        5.  **FINALLY**, after all 12 points, add a "## Executive Summary" section with:
+            - A brief 2-3 sentence overview.
+            - A bulleted list of the **Top 3 Priorities** to fix.
+
+
+        **AUDIT POINTS:**
+        1.  **SEO (Search Engine Optimization):** (Analyze meta tags, keywords, headings)
+        2.  **Accessibility (a11y):** (Analyze alt text, contrasts, landmarks)
+        3.  **Performance:** (Infer potential issues: large images, complex DOM)
+        4.  **Content Quality & Readability:** (Analyze clarity, grammar, tone)
+        5.  **Mobile-Friendliness (Inferred):** (Analyze text flow, link proximity)
+        6.  **Security (Inferred):** (Check for 'https://', mention mixed content risks)
+        7.  **UX/UI Design:** (Analyze layout, call-to-actions, navigation)
+        8.  **Technical SEO:** (Analyze URL structure, robots.txt - infer)
+        9.  **Conversion Rate Optimization (CRO):** (Analyze clarity of CTAs)
+        10. **Error Handling (Inferred):** (Look for error messages in text)
+        11. **Brand Voice & Tone:** (Is it consistent and professional?)
+        12. **Social Media Integration:** (Mention if social links are present/missing)
+
+        **EXAMPLE OUTPUT STRUCTURE:**
+        # 📊 Enhanced Auditor Report
+
+        ## 📈 Interactive Score Dashboard
+        [CHART_PLACEHOLDER]
+
+        ## 1. SEO (Search Engine Optimization)
+        **Score: 85/100**
+        [Analysis]
+        - [Action Item 1]
+        ...
+
+        ... (all 12 points) ...
+
+        ## Executive Summary
+        [Overview sentence 1. Overview sentence 2.]
+        - **Top Priority 1:** [Description]
+        - **Top Priority 2:** [Description]
+        - **Top Priority 3:** [Description]
+    `;
+
+    // Create a new div for the streaming response
+    const streamingReportDiv = document.createElement('div');
+    streamingReportDiv.className = 'results-wrapper';
+    elements.results.innerHTML = ''; // Clear placeholder
+    elements.results.appendChild(streamingReportDiv);
+
+    let fullResponse = '';
+    try {
+        const session = await createAISession();
+        const stream = await session.promptStreaming(prompt);
+        for await (const chunk of stream) {
+            fullResponse += chunk;
+            // Temporarily render markdown with a cursor to show streaming
+            // We remove the placeholder during streaming to avoid it flashing
+            streamingReportDiv.innerHTML = renderMarkdown(fullResponse.replace(/\[CHART_PLACEHOLDER\]/g, "") + "▌");
+        }
+        // Render the final markdown *without* the cursor
+        // ***NB:*** We render the *fullResponse* which still contains the placeholder
+        streamingReportDiv.innerHTML = renderMarkdown(fullResponse);
+        session.destroy();
+
+    } catch (error) {
+        console.error('Audit streaming error:', error);
+        updateStatus('audit', `Failed: ${error.message}`, 'error');
+        showError(error.message, 'auditor');
+        elements.auditButton.disabled = false;
+        showLoader('audit', false);
+        return;
+    }
 
     try {
-        const report = await performAudit(content.substring(0, 8000), url, title);
+        // ★★★ FIX STARTS HERE ★★★
+
+        // 1. Parse scores from the full response FIRST
+        const scores = parseScoresFromMarkdown(fullResponse);
+
+        // 2. Create the HTML for the new metrics cards
+        const metricsDashboardHtml = createMetricsDashboardHTML(scores);
+
+        // 3. Create the HTML for the chart canvas
+        const chartHtml = '<div style="height: 350px; position: relative;"><canvas id="auditScoreChart"></canvas></div>';
+
+        // 4. Combine them
+        const dashboardContent = metricsDashboardHtml + chartHtml;
+
+        // 5. NOW, replace the placeholder in the *rendered HTML* with our dashboard HTML
+        // This avoids running our HTML through the markdown parser
+        streamingReportDiv.innerHTML = streamingReportDiv.innerHTML.replace(
+            /\[CHART_PLACEHOLDER\]/g,
+            dashboardContent
+        );
+
+        // ★★★ FIX ENDS HERE ★★★
+
+
+        // 7. ★★★ USE requestAnimationFrame AND querySelector TO FIX THE TIMING ISSUE ★★★
+        requestAnimationFrame(() => {
+            // Search inside the specific div, not the whole document
+            const chartCanvas = streamingReportDiv.querySelector('#auditScoreChart');
+            if (chartCanvas) {
+                renderAuditScoreChart(chartCanvas, scores);
+            } else {
+                // This warning should no longer appear!
+                console.warn("Chart canvas not found after render.");
+            }
+        });
+
+        // 8. Save and finalize report
         currentAuditReport = {
-            markdown: report.markdown,
-            scores: report.scores,
+            markdown: fullResponse, // Save the raw markdown (before placeholder replacement)
+            scores: scores,
             date: reportDate.toISOString()
         };
 
-        // Cache the final HTML
-        currentAuditReportHTML = elements.results.innerHTML;
+        // 9. Cache the final HTML (which now includes the canvas tag)
+        currentAuditReportHTML = streamingReportDiv.innerHTML;
 
-        // Show action buttons
+        // 10. Show action buttons
         elements.aiActionsPanel.style.display = 'grid';
         elements.auditorChatContainer.style.display = 'block';
         elements.copyReportButton.style.display = 'block';
@@ -383,118 +633,18 @@ async function runAudit() {
         elements.downloadJsonButton.style.display = 'block';
 
         updateStatus('audit', 'Audit complete!', 'success');
-        await saveAudit(url, title, report.markdown, currentAuditReportHTML, report.scores); // Save to history
+        await saveAudit(url, title, fullResponse, currentAuditReportHTML, scores); // Save to history
 
     } catch (error) {
-        console.error('Audit error:', error);
-        updateStatus('audit', `Failed: ${error.message}`, 'error');
+        console.error('Audit post-processing error:', error);
+        updateStatus('audit', `Failed to parse report: ${error.message}`, 'error');
+        // Show the raw report even if parsing fails
+        streamingReportDiv.innerHTML = renderMarkdown(fullResponse);
         showError(error.message, 'auditor');
     } finally {
         elements.auditButton.disabled = false;
         showLoader('audit', false);
     }
-}
-
-
-async function performAudit(content, url, title) {
-    const session = await createAISession();
-    let fullReport = `<h1>📊 Enhanced Auditor Report</h1>`;
-    let fullMarkdown = `# 📊 Enhanced Auditor Report\n`;
-
-    const auditAreas = [
-        "Technical Foundation", "Accessibility (a11y)", "Performance", "Security",
-        "User Experience (UX)", "Content Quality", "SEO On-Page", "Link Architecture",
-        "Conversion Optimization", "Analytics", "Competitive Position", "Mobile Readiness"
-    ];
-
-    elements.results.innerHTML = '<div class="results-wrapper"></div>';
-    const resultsWrapper = elements.results.querySelector('.results-wrapper');
-    resultsWrapper.innerHTML = fullReport; // Add header immediately
-
-    // Add Chart placeholder
-    const chartCanvas = document.createElement('canvas');
-    chartCanvas.id = 'auditScoreChart';
-    resultsWrapper.appendChild(chartCanvas);
-
-    let scores = {};
-
-    for (let i = 0; i < auditAreas.length; i++) {
-        const area = auditAreas[i];
-        updateStatus('audit', `Analyzing ${i + 1}/${auditAreas.length}: ${area}...`, 'info');
-
-        const prompt = `You are an expert web auditor. Analyze the following page content for **${area}**.
-        Page URL is ${url}, Title is "${title}".
-
-        **CRITICAL RULES:**
-        - Start with the section header: ## ${area} [X/10]
-        - Provide a score out of 10 in the header.
-        - Follow with "### Assessment", "### Key Issues", and "### Recommendation".
-        - Use bullet points for issues and recommendations.
-        - Be concise and actionable.
-
-        PAGE CONTENT (first 4000 chars):
-        ${content}`;
-
-        const sectionElement = document.createElement('div');
-        sectionElement.className = 'audit-section';
-        resultsWrapper.appendChild(sectionElement);
-
-        try {
-            const stream = await session.promptStreaming(prompt);
-            let sectionContent = '';
-            for await (const chunk of stream) {
-                sectionContent += chunk;
-                sectionElement.innerHTML = renderMarkdown(sectionContent);
-            }
-            fullMarkdown += sectionContent + '\n\n';
-
-            // Try to parse score
-            const scoreMatch = sectionContent.match(/\[(\d+)\/10\]/);
-            if (scoreMatch) {
-                scores[area] = parseInt(scoreMatch[1], 10) * 10; // Convert to /100
-            }
-
-        } catch (error) {
-            console.error(`Error auditing ${area}:`, error);
-            const errorMarkdown = `## ${area} [0/10]\n\nError: ${error.message}\n\n`;
-            sectionElement.innerHTML = renderMarkdown(errorMarkdown);
-            fullMarkdown += errorMarkdown;
-        }
-    }
-
-    // Final summary
-    updateStatus('audit', `Generating Executive Summary...`, 'info');
-    const summaryPrompt = `Based on the following audit sections, create a final "## Executive Summary".
-    Include:
-    - **Overall Grade:** (A+ to F)
-    - **Top Priority:** (The single most important issue to fix)
-    - **Quick Wins:** (2-3 easy-to-implement improvements)
-
-    AUDIT SECTIONS:
-    ${fullMarkdown}`;
-
-    const summaryElement = document.createElement('div');
-    summaryElement.className = 'audit-section';
-    resultsWrapper.appendChild(summaryElement);
-    try {
-        const stream = await session.promptStreaming(summaryPrompt);
-        let summaryContent = '';
-        for await (const chunk of stream) {
-            summaryContent += chunk;
-            summaryElement.innerHTML = renderMarkdown(summaryContent);
-        }
-        fullMarkdown += summaryContent;
-    } catch (error) {
-        console.error('Error generating summary:', error);
-        summaryElement.innerHTML = `<h3>Error generating summary</h3><p>${error.message}</p>`;
-    }
-
-    session.destroy();
-
-    // Render the chart
-    renderAuditScoreChart(chartCanvas, scores);
-
-    return { markdown: fullMarkdown, scores: scores };
 }
 
 async function summarizeReport() {
@@ -1205,11 +1355,13 @@ async function downloadPdf(type) {
                 const images = doc.querySelectorAll('img');
                 const promises = [];
                 images.forEach(img => {
-                    if (!img.complete) {
-                        promises.push(new Promise((resolve, reject) => {
-                            img.onload = resolve;
-                            img.onerror = reject;
-                        }));
+                    if (img.src.startsWith('data:')) { // Only wait for data-urls
+                        if (!img.complete) {
+                            promises.push(new Promise((resolve) => {
+                                img.onload = resolve;
+                                img.onerror = resolve; // Don't reject, just move on
+                            }));
+                        }
                     }
                 });
                 return Promise.all(promises);
@@ -1276,21 +1428,27 @@ function downloadJson() {
     let currentSection = null;
 
     for (const line of lines) {
-        const sectionMatch = line.match(/^##\s*(.*?)(?:\[(\d+)\/10\])?$/);
-        const summaryMatch = line.match(/^##\s*Executive Summary/);
+        const sectionMatch = line.match(/^##\s*\d*\.?\s*(.*?)(?:\*\*Score:\s*(\d+)\/100\*\*)?$/);
+        const summaryMatch = line.match(/^##\s*Executive Summary/); // V3.3 summary has no score
+        const dashboardMatch = line.match(/^##\s*📈 Interactive Score Dashboard/);
+
+        if (dashboardMatch) continue; // Skip the dashboard section
 
         if (sectionMatch || summaryMatch) {
             if (currentSection) {
+                 currentSection.content = currentSection.content.trim();
                 jsonReport.sections.push(currentSection);
             }
 
             let title, score;
             if (sectionMatch) {
                 title = (sectionMatch[1] || '').trim();
-                score = sectionMatch[2] ? `${sectionMatch[2]}/10` : 'N/A';
-            } else {
+                score = sectionMatch[2] ? `${sectionMatch[2]}/100` : 'N/A';
+            } else if (summaryMatch) {
                 title = 'Executive Summary';
                 score = 'N/A';
+            } else {
+                continue;
             }
 
             currentSection = {
@@ -1433,6 +1591,7 @@ async function saveHistoryItem(item) {
 async function saveAudit(url, title, reportMarkdown, reportHTML, scores) {
     await saveHistoryItem({
         type: 'audit',
+        id: `audit_${Date.now()}`, // Ensure a unique ID
         url: url,
         title: title || url,
         report: reportMarkdown,
@@ -1702,6 +1861,12 @@ function renderMarkdown(text) {
     // Basic sanitation
     text = text.replace(/<script\b[^>]*>([\s\S]*?)<\/script>/gim, "");
     text = text.replace(/onerror\s*=\s*["']?[^"'>]+["']?/gim, "");
+    // Check if marked is available
+    if (typeof marked === 'undefined' || typeof marked.parse === 'undefined') {
+        console.error("marked.js is not loaded!");
+        // Fallback to basic rendering
+        return text.replace(/\n/g, '<br>');
+    }
     return marked.parse(text);
 }
 
@@ -1772,6 +1937,15 @@ function renderAuditScoreChart(canvas, scores) {
     if (window.chartInstance) {
         window.chartInstance.destroy();
     }
+    if (!canvas) {
+        console.error("Canvas element not provided to renderAuditScoreChart");
+        return;
+    }
+    if (!scores || Object.keys(scores).length === 0) {
+        console.warn("No scores provided to renderAuditScoreChart");
+        // Don't render an empty chart
+        return;
+    }
 
     const labels = Object.keys(scores);
     const data = Object.values(scores);
@@ -1836,7 +2010,8 @@ function renderAuditScoreChart(canvas, scores) {
                     bodyFont: { size: 14 },
                     callbacks: {
                         label: function(context) {
-                            return `${context.label}: ${context.raw / 10}/10`;
+                            // The score (context.raw) is 0-100.
+                            return `${context.label}: ${context.raw}/100`;
                         }
                     }
                 }
