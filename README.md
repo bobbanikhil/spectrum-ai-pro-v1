@@ -14,14 +14,8 @@ This project solves the "privacy gap" of cloud AI. It provides powerful analysis
 
 Spectrum AI Pro solves the core trade-off between powerful AI features and user privacy. By leveraging the `languageModel` permission and Chrome's built-in AI, it delivers:
 
-| Submission Links | |
-
-|-----------------|--|*   **🔒 Inherent Privacy:** No page content, audit results, or browsing habits are ever sent to a server.
-
-| 📹 Demo Video | WATCH THE 3-MINUTE DEMO HERE |*   **⚡ Lightning Fast:** AI results are generated instantly with zero network latency.
-
-| 💬 Feedback | Give Feedback (for Most Valuable Feedback Prize) |*   **💸 Cost-Free:** No API keys, server costs, or rate limits for you or your users.
-
+*   **⚡ Lightning Fast:** AI results are generated instantly with zero network latency.
+*   **💸 Cost-Free:** No API keys, server costs, or rate limits for you or your users.
 *   **✅ Network Resilient:** Core features are available offline, working anytime, anywhere.
 
 ## 🏆 How Spectrum AI Pro Impresses the Judges
