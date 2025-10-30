@@ -1,5 +1,18 @@
 // popup.js
 
+// A helper function to robustly open the side panel
+function openSidePanel() {
+  chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+    if (tabs[0] && tabs[0].id) {
+      // Use the active tab's ID to open the panel
+      chrome.sidePanel.open({ tabId: tabs[0].id });
+    } else {
+      // Fallback for other contexts (e.g., if no active tab)
+      chrome.sidePanel.open();
+    }
+  });
+}
+
 // Check AI availability
 document.addEventListener('DOMContentLoaded', () => {
     if (typeof self.LanguageModel !== 'undefined') {
@@ -10,11 +23,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // Button actions
 document.getElementById('openSidePanel').addEventListener('click', () => {
-    chrome.sidePanel.open({ windowId: chrome.windows.WINDOW_ID_CURRENT });
+    openSidePanel();
 });
 
 document.getElementById('quickAudit').addEventListener('click', () => {
-    chrome.sidePanel.open({ windowId: chrome.windows.WINDOW_ID_CURRENT });
+    openSidePanel();
     // Send message to run audit
     setTimeout(() => {
         chrome.runtime.sendMessage({ action: 'runQuickAudit' });
@@ -22,7 +35,7 @@ document.getElementById('quickAudit').addEventListener('click', () => {
 });
 
 document.getElementById('startDocFlow').addEventListener('click', () => {
-    chrome.sidePanel.open({ windowId: chrome.windows.WINDOW_ID_CURRENT });
+    openSidePanel();
     setTimeout(() => {
         // trigger Doc Flow recording via service worker
         chrome.runtime.sendMessage({ action: 'startDocFlowRecording' });
@@ -30,7 +43,7 @@ document.getElementById('startDocFlow').addEventListener('click', () => {
 });
 
 document.getElementById('organizeTabs').addEventListener('click', () => {
-    chrome.sidePanel.open({ windowId: chrome.windows.WINDOW_ID_CURRENT });
+    openSidePanel();
     setTimeout(() => {
         chrome.runtime.sendMessage({ action: 'organizeTabs' });
     }, 100);

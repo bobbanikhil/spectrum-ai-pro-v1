@@ -278,9 +278,11 @@ body {
 
 .panel-content {
     flex: 1;
-    overflow-y: auto;
+    overflow-y: auto; /* This panel will scroll if content overflows */
     overflow-x: hidden;
     padding: 20px;
+    display: flex; /* ★★★ Make it a flex container ★★★ */
+    flex-direction: column; /* ★★★ Stack its children ★★★ */
 }
 
 .report-actions {
@@ -343,7 +345,11 @@ body {
     animation: slideInUp 0.3s ease-out;
 }
 .tab-content.active {
-    display: block;
+    display: flex; /* ★★★ Make it a flex container ★★★ */
+    flex-direction: column; /* ★★★ Stack its children ★★★ */
+    flex: 1; /* ★★★ Make it fill the panel-content ★★★ */
+    min-height: 0; /* Ensures proper flexing */
+    animation: slideInUp 0.3s ease-out;
 }
 
 /* ============================================
@@ -562,12 +568,17 @@ body {
 .chat-container {
     margin-top: 20px;
     animation: slideInUp 0.3s ease-out;
+    display: flex; /* ★★★ Make it a flex container ★★★ */
+    flex-direction: column; /* ★★★ Stack messages and input ★★★ */
+    flex: 1; /* ★★★ Make it grow ★★★ */
+    min-height: 200px; /* Give it a minimum height */
 }
 
 .chat-messages {
     /* --- ★★★ CHANGED ★★★ --- */
-    /* Increased chat window height */
-    max-height: 450px;
+    /* Make chat window grow to fill space */
+    flex: 1; /* ★★★ Make it grow ★★★ */
+    /* max-height: 450px; */ /* REMOVED to allow full growth */
     overflow-y: auto;
     padding: 12px;
     background: var(--bg-tertiary);

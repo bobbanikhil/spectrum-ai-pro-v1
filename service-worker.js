@@ -71,6 +71,8 @@ async function runProactiveAudit() {
 // --- Extension Installation & Setup ---
 // =================================================================
 
+// ... (inside service-worker.js) ...
+
 chrome.runtime.onInstalled.addListener(async (details) => {
     chrome.contextMenus.create({
         id: 'open-side-panel',
@@ -83,12 +85,17 @@ chrome.runtime.onInstalled.addListener(async (details) => {
         periodInMinutes: 0.5
     });
 
-    if (details.reason === 'install') {
+    // --- FIX ---
+    // Open setup page on first install OR on extension update
+    if (details.reason === 'install' || details.reason === 'update') {
+    // --- END FIX ---
         chrome.tabs.create({
             url: chrome.runtime.getURL('setup.html')
         });
     }
 });
+
+// ... (rest of service-worker.js) ...
 
 // =================================================================
 // --- Context Menu Handler ---
