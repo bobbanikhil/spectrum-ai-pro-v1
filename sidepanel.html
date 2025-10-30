@@ -10,18 +10,13 @@
     <link rel="stylesheet" href="sidepanel.css">
 </head>
 <body>
-    <!-- Background Aurora Effect -->
     <div id="background-aurora"></div>
 
-    <!-- Main Container -->
     <div class="container">
-        <!-- Header -->
         <header class="header">
             <h1>✨ Spectrum AI Pro</h1>
-<!--            <p>Professional Web Intelligence Suite</p>-->
         </header>
 
-        <!-- View Mode Selector -->
         <div class="view-mode-selector">
             <button class="view-mode-btn active" data-mode="split">
                 📊 Split View
@@ -34,7 +29,6 @@
             </button>
         </div>
 
-        <!-- Tab Navigation -->
         <div class="tabs" role="tablist">
             <button class="tab-link active" role="tab" data-tab="auditor" aria-selected="true">
                 🎯 Auditor
@@ -50,15 +44,12 @@
             </button>
         </div>
 
-        <!-- Content Wrapper -->
         <div class="content-wrapper split-view">
-            <!-- LEFT PANEL - Chat & Actions -->
             <div class="chat-panel panel">
                 <div class="panel-header">
-                    💬 AI Assistant
+                    <span>💬 AI Assistant</span>
                 </div>
                 <div class="panel-content">
-                    <!-- Tab-Specific Content -->
                     <div id="auditor" class="tab-content active" role="tabpanel">
                         <div class="action-panel">
                             <button id="auditButton" class="btn-primary">
@@ -123,6 +114,9 @@
                             <button id="stopDocFlowButton" class="btn-danger" style="display: none;">
                                 ⏹️ Stop & Generate
                             </button>
+                            <button id="manualScreenshotButton" class="btn-secondary" style="display: none; margin-top: 8px;">
+                                📸 Take Screenshot
+                            </button>
 
                             <div id="docFlowActionsPanel" class="action-panel-grid" style="display: none;">
                                 <button id="generalizeWorkflowButton" class="ai-action-button">
@@ -131,7 +125,7 @@
                                 <button id="generateQaButton" class="ai-action-button">
                                     ❓ Generate Q&A
                                 </button>
-                                <button id="downloadPdfButton" class="ai-action-button">
+                                <button id="downloadDocFlowPdfButton" class="ai-action-button">
                                     📥 PDF
                                 </button>
                             </div>
@@ -154,13 +148,13 @@
                     <div id="history" class="tab-content" role="tabpanel" hidden>
                         <div class="history-controls">
                             <input type="search" id="historySearchInput" class="search-input" placeholder="Search by URL...">
-                            <button id="clearHistoryButton" class="btn-secondary">
+                            <button id="clearHistoryButton" class="btn-secondary" title="Clear All History">
                                 🗑️ Clear
                             </button>
-                            <button id="exportHistoryButton" class="btn-secondary">
+                            <button id="exportHistoryButton" class="btn-secondary" title="Export History">
                                 📤 Export
                             </button>
-                            <button id="importHistoryButton" class="btn-secondary">
+                            <button id="importHistoryButton" class="btn-secondary" title="Import History">
                                 📥 Import
                             </button>
                         </div>
@@ -168,20 +162,27 @@
                 </div>
             </div>
 
-            <!-- RIGHT PANEL - Results -->
             <div class="results-panel panel">
                 <div class="panel-header">
-                    📊 Results & Reports
-                    <button id="copyReportButton" class="copy-btn" style="display: none;">
-                        📋 Copy
-                    </button>
-                    <button id="downloadPdfButton" class="copy-btn" style="display: none;">
-                        📥 PDF
-                    </button>
-                    <button id="downloadJsonButton" class="copy-btn" style="display: none;">
-                        📥 JSON
-                    </button>
+                    <span>📊 Results & Reports</span>
+                    <div class="report-actions">
+                        <button id="copyReportButton" class="copy-btn" style="display: none;" title="Copy to Clipboard">
+                            📋 Copy
+                        </button>
+                        <button id="downloadPdfButton" class="copy-btn" style="display: none;" title="Download as PDF">
+                            📥 PDF
+                        </button>
+                        <button id="downloadJsonButton" class="copy-btn" style="display: none;" title="Download as JSON">
+                            📥 JSON
+                        </button>
+                    </div>
                 </div>
+
+                <div class="report-info-header" id="reportInfo" style="display: none;">
+                    <strong id="reportUrl"></strong>
+                    <span id="reportDate"></span>
+                </div>
+
                 <div class="panel-content">
                     <div class="results-container">
                         <div id="results" class="report-container">
@@ -202,6 +203,19 @@
             </div>
         </div>
     </div>
+
+    <template id="skeleton-loader-template">
+        <div class="skeleton-wrapper">
+            <div class="skeleton-chart"></div>
+            <div class="skeleton-h2"></div>
+            <div class="skeleton-h3"></div>
+            <div class="skeleton-p"></div>
+            <div class="skeleton-p short"></div>
+            <div class="skeleton-h3"></div>
+            <div class="skeleton-p"></div>
+            <div class="skeleton-p short"></div>
+        </div>
+    </template>
 
     <script src="marked.min.js"></script>
     <script src="jspdf.umd.min.js"></script>

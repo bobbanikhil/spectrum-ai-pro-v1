@@ -1,2 +1,36 @@
-/* Doc Flow CSS */
+/*
+ * Doc Flow CSS
+ * Styles for highlighting recorded user interactions.
+ */
+
+@keyframes docflow-click-pulse {
+  0% {
+    transform: translate(-50%, -50%) scale(0.5);
+    opacity: 1;
+    border-width: 4px;
+  }
+  70% {
+    opacity: 0.8;
+    border-width: 2px;
+  }
+  100% {
+    transform: translate(-50%, -50%) scale(1.5);
+    opacity: 0;
+    border-width: 1px;
+  }
+}
+
+.docflow-click-indicator {
+  position: fixed;
+  width: 30px;
+  height: 30px;
+  border: 4px solid rgba(59, 130, 246, 0.8); /* --accent */
+  background: rgba(59, 130, 246, 0.2);
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  animation: docflow-click-pulse 0.6s ease-out forwards;
+  pointer-events: none;
+  z-index: 2147483647;
+  backdrop-filter: blur(2px);
+}/* Doc Flow CSS */
 /* Styles for recorded user interactions highlighting, etc. */

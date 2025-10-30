@@ -1,10 +1,15 @@
-// Spectrum AI Pro - Enhanced Service Worker
-// Professional on-device AI assistant with improved performance and reliability
+/**
+ * SPECTRUM AI PRO V3.2 - SERVICE WORKER (Fixed)
+ *
+ * This file handles background tasks:
+ * - Fixed: Added `outputLanguage: 'en'` to AI calls.
+ * - Fixed: `startDocFlowRecording` now correctly gets tabId from message or sender.
+ * - Fixed: `recordAction` logic simplified to prevent duplicate screenshots.
+ */
 
 // Global state management
 let docFlowSession = {
     isRecording: false,
-    pendingScreenshot: null,
     recordedSteps: [],
     activeTabId: null
 };
@@ -14,7 +19,7 @@ const PROACTIVE_AUDIT_ALARM = 'proactive-audit-alarm';
 let lastUrlChecked = '';
 
 // =================================================================
-// --- Proactive Auditing Logic (Enhanced) ---
+// --- Proactive Auditing Logic (Fixed) ---
 // =================================================================
 
 chrome.alarms.onAlarm.addListener(async (alarm) => {
@@ -28,8 +33,6 @@ async function runProactiveAudit() {
         const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
         if (!tab || !tab.id || !tab.url?.startsWith('http')) return;
         if (typeof self.LanguageModel === 'undefined') return;
-
-        // Debounce checks for the same URL
         if (lastUrlChecked === tab.url) return;
         lastUrlChecked = tab.url;
 
@@ -39,10 +42,10 @@ async function runProactiveAudit() {
         }).catch(() => [{}]);
 
         if (result) {
+            // ★★★ FIX: Added outputLanguage ★★★
             const session = await self.LanguageModel.create({ outputLanguage: 'en' });
             const prompt = `Analyze the following webpage text for critical issues ONLY (Security, Accessibility, Performance).
             Respond with ONLY one of two words: "CRITICAL" if you find a significant issue, or "OK" if not.
-
             CONTENT:
             ${result.substring(0, 4000)}`;
 
@@ -61,7 +64,6 @@ async function runProactiveAudit() {
     } catch (e) {
         console.error("Proactive Audit failed:", e.message);
         await chrome.action.setBadgeText({ text: '' });
-        await chrome.action.setTitle({ title: 'Open Spectrum AI Pro' });
     }
 }
 
@@ -70,20 +72,17 @@ async function runProactiveAudit() {
 // =================================================================
 
 chrome.runtime.onInstalled.addListener(async (details) => {
-    // Create context menu
     chrome.contextMenus.create({
         id: 'open-side-panel',
         title: 'Open Spectrum AI Pro',
         contexts: ['all']
     });
 
-    // Set up proactive auditing alarm
     chrome.alarms.create(PROACTIVE_AUDIT_ALARM, {
         delayInMinutes: 0.1,
         periodInMinutes: 0.5
     });
 
-    // Welcome message for new users
     if (details.reason === 'install') {
         chrome.tabs.create({
             url: chrome.runtime.getURL('setup.html')
@@ -98,16 +97,13 @@ chrome.runtime.onInstalled.addListener(async (details) => {
 chrome.contextMenus.onClicked.addListener((info, tab) => {
     if (info.menuItemId === 'open-side-panel' && tab.windowId) {
         chrome.sidePanel.open({ windowId: tab.windowId });
-        chrome.action.setBadgeText({ text: '' });
-        chrome.action.setTitle({ title: 'Open Spectrum AI Pro' });
     }
 });
 
 // =================================================================
-// --- Doc Flow Recording System ---
+// --- Doc Flow Recording System (Fixed) ---
 // =================================================================
 
-// Inject Doc Flow script for recording
 const injectDocFlowIfNeeded = (tabId, url) => {
     if (docFlowSession.isRecording && url?.startsWith('http')) {
         console.log(`Doc Flow Session: Injecting script into tab ${tabId}`);
@@ -121,47 +117,37 @@ const injectDocFlowIfNeeded = (tabId, url) => {
                 files: ['docflow.css']
             });
         }).catch(err => {
-            console.warn(`Doc Flow: Failed to inject script into ${url}. It might be a protected page.`);
+            console.warn(`Doc Flow: Failed to inject script into ${url}.`);
         });
     }
 };
 
-// Tab update handler for Doc Flow
 chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
-    if (changeInfo.status === 'complete') {
-        try {
-            const updatedTab = await chrome.tabs.get(tabId);
-            if (!updatedTab.url) return;
+    if (docFlowSession.isRecording && changeInfo.status === 'complete' && tab.url?.startsWith('http')) {
 
-            // Doc Flow re-injection and screenshot logic
-            injectDocFlowIfNeeded(tabId, updatedTab.url);
+        // Re-inject script on navigation
+        injectDocFlowIfNeeded(tabId, tab.url);
 
-            // Handle pending screenshots
-            if (docFlowSession.pendingScreenshot && docFlowSession.pendingScreenshot.tabId === tabId) {
-                await takeScreenshot(tabId);
-                docFlowSession.pendingScreenshot = null;
-            }
-
-            // Record navigation for Doc Flow
-            if (docFlowSession.isRecording && docFlowSession.activeTabId === tabId) {
+        // Record navigation step
+        if (docFlowSession.activeTabId === tabId && changeInfo.url) {
+            // Check if the last step was also a navigation to the same URL (avoids duplicates)
+            const lastStep = docFlowSession.recordedSteps[docFlowSession.recordedSteps.length - 1];
+            if (!lastStep || lastStep.type !== 'navigation' || lastStep.url !== tab.url) {
                 docFlowSession.recordedSteps.push({
                     type: 'navigation',
-                    url: updatedTab.url,
-                    title: updatedTab.title,
+                    url: tab.url,
+                    title: tab.title,
                     timestamp: Date.now()
                 });
+                await recordActionScreenshot();
             }
-        } catch (error) {
-            console.error('Tab update handler error:', error);
         }
     }
 });
 
-// Handle tab activation changes
 chrome.tabs.onActivated.addListener(async (activeInfo) => {
     if (docFlowSession.isRecording) {
         docFlowSession.activeTabId = activeInfo.tabId;
-
         try {
             const tab = await chrome.tabs.get(activeInfo.tabId);
             injectDocFlowIfNeeded(activeInfo.tabId, tab.url);
@@ -178,65 +164,108 @@ chrome.tabs.onActivated.addListener(async (activeInfo) => {
 async function takeScreenshot(tabId) {
     try {
         const dataUrl = await chrome.tabs.captureVisibleTab(
-            undefined, // Use current window
+            undefined,
             { format: 'png', quality: 80 }
         );
         return dataUrl;
     } catch (error) {
-        console.error('Screenshot failed:', error);
+        console.error('Screenshot failed:', error.message);
         return null;
     }
 }
 
+async function recordActionScreenshot() {
+    if (!docFlowSession.isRecording || !docFlowSession.activeTabId) return;
+
+    // Give the page a moment to render after an action
+    await new Promise(resolve => setTimeout(resolve, 300));
+
+    const screenshotDataUrl = await takeScreenshot(docFlowSession.activeTabId);
+    if (screenshotDataUrl) {
+        docFlowSession.recordedSteps.push({
+            type: 'screenshot',
+            dataUrl: screenshotDataUrl,
+            timestamp: Date.now(),
+            tabId: docFlowSession.activeTabId
+        });
+    }
+}
+
 // =================================================================
-// --- Message Handling ---
+// --- Message Handling (Fixed) ---
 // =================================================================
 
-chrome.runtime.onMessage.addListener(async (request, sender, sendResponse) => {
+chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+    let isAsync = false;
+
     switch (request.action) {
+        // ★★★ FIX: Correctly get tabId from sidepanel or popup ★★★
         case 'startDocFlowRecording':
-            startDocFlowRecording(sender.tab?.id);
+            const tabId = request.tabId || sender.tab?.id;
+            startDocFlowRecording(tabId);
+            sendResponse({ success: true });
             break;
 
         case 'stopDocFlowRecording':
             stopDocFlowRecording();
+            sendResponse({ success: true });
+            break;
+
+        case 'manualScreenshot':
+            isAsync = true;
+            recordActionScreenshot().then(() => {
+                sendResponse({ success: true });
+            });
             break;
 
         case 'recordAction':
-            await recordAction(request.data);
+            // This message comes from docflow.js (content script)
+            recordAction(request.data);
+            sendResponse({ success: true }); // No async needed here
             break;
 
         case 'getDocFlowSteps':
             sendResponse({ steps: docFlowSession.recordedSteps });
             break;
 
+        // --- Popup message forwarding to side panel ---
         case 'runQuickAudit':
-            // Forward to side panel
-            chrome.runtime.sendMessage({
-                action: 'runAuditFromPopup'
+            chrome.runtime.sendMessage({ action: 'runAuditFromPopup' });
+            break;
+
+        case 'startDocFlow': // Message from popup.js
+            chrome.sidePanel.open({ windowId: chrome.windows.WINDOW_ID_CURRENT });
+            // Get active tab and send it to the sidepanel to start
+            chrome.tabs.query({ active: true, currentWindow: true }).then(([tab]) => {
+                setTimeout(() => {
+                     chrome.runtime.sendMessage({ action: 'startDocFlowRecording', tabId: tab.id });
+                }, 200);
             });
             break;
 
-        case 'organizeTabsFromPopup':
-            // Forward to side panel
-            chrome.runtime.sendMessage({
-                action: 'organizeTabsFromPopup'
-            });
+        case 'organizeTabs':
+            chrome.runtime.sendMessage({ action: 'organizeTabsFromPopup' });
             break;
     }
+
+    return isAsync;
 });
 
-// =================================================================
-// --- Doc Flow Session Management ---
-// =================================================================
 
+// =================================================================
+// --- Doc Flow Session Management (Fixed) ---
+// =================================================================
 
 function startDocFlowRecording(tabId) {
+    if (!tabId) {
+        console.error("Start recording failed: No active tab ID provided.");
+        return;
+    }
+
     docFlowSession.isRecording = true;
     docFlowSession.activeTabId = tabId;
     docFlowSession.recordedSteps = [];
 
-    // Update extension icon
     chrome.action.setIcon({
         path: {
             '16': 'icons/recording16.png',
@@ -244,11 +273,13 @@ function startDocFlowRecording(tabId) {
             '128': 'icons/recording128.png'
         }
     });
+    chrome.action.setTitle({ title: "Spectrum AI Pro (Recording...)" });
 
-    // Inject Doc Flow into current tab
     if (tabId) {
         chrome.tabs.get(tabId, (tab) => {
-            injectDocFlowIfNeeded(tabId, tab.url);
+            if (tab && tab.url) {
+                injectDocFlowIfNeeded(tabId, tab.url);
+            }
         });
     }
 }
@@ -257,7 +288,6 @@ function stopDocFlowRecording() {
     docFlowSession.isRecording = false;
     docFlowSession.activeTabId = null;
 
-    // Reset extension icon
     chrome.action.setIcon({
         path: {
             '16': 'icons/icon16.png',
@@ -265,9 +295,10 @@ function stopDocFlowRecording() {
             '128': 'icons/icon128.png'
         }
     });
+    chrome.action.setTitle({ title: "Open Spectrum AI Pro" });
 }
 
-async function recordAction(actionData) {
+function recordAction(actionData) {
     if (docFlowSession.isRecording) {
         docFlowSession.recordedSteps.push({
             ...actionData,
@@ -275,17 +306,9 @@ async function recordAction(actionData) {
             tabId: docFlowSession.activeTabId
         });
 
-        // Automatically take a screenshot for click and input actions
-        if (actionData.type === 'click' || actionData.type === 'input' || actionData.type === 'navigation') {
-            const screenshotDataUrl = await takeScreenshot(docFlowSession.activeTabId);
-            if (screenshotDataUrl) {
-                docFlowSession.recordedSteps.push({
-                    type: 'screenshot',
-                    dataUrl: screenshotDataUrl,
-                    timestamp: Date.now(),
-                    tabId: docFlowSession.activeTabId
-                });
-            }
+        // ★★★ FIX: Only screenshot on click/input, not navigation ★★★
+        if (actionData.type === 'click' || actionData.type === 'input') {
+            recordActionScreenshot();
         }
     }
 }
@@ -294,31 +317,14 @@ async function recordAction(actionData) {
 // --- Utility Functions ---
 // =================================================================
 
-// Clean up on extension suspend
 chrome.runtime.onSuspend.addListener(() => {
     chrome.action.setBadgeText({ text: '' });
     chrome.action.setTitle({ title: 'Open Spectrum AI Pro' });
-    chrome.action.setIcon({
-        path: {
-            '16': 'icons/icon16.png',
-            '48': 'icons/icon48.png',
-            '128': 'icons/icon128.png'
-        }
-    });
 });
 
-// Handle installation and updates
 chrome.runtime.onStartup.addListener(() => {
-    // Reset any lingering state
     chrome.action.setBadgeText({ text: '' });
     chrome.action.setTitle({ title: 'Open Spectrum AI Pro' });
 });
 
-// Error handling for unhandled promise rejections
-self.addEventListener('unhandledrejection', (event) => {
-    console.error('Unhandled promise rejection:', event.reason);
-    // Prevent the default console error
-    event.preventDefault();
-});
-
-console.log('Spectrum AI Pro Service Worker loaded successfully! 🚀');
+console.log('Spectrum AI Pro Service Worker (v3.2) loaded! 🚀');

@@ -1,71 +1,90 @@
 /**
- * 🏆 SPECTRUM AI PRO V3.0 - COMPLETE WORKING CODE
+ * 🏆 SPECTRUM AI PRO V3.2 - FINAL BUGFIX EDITION
  * Google Chrome Built-in AI Challenge 2025
+ *
+ * This version addresses all reported bugs:
+ * - Fixed: `checkAIAvailability` now accepts 'available' status (fixes sidepanel.js:304 error).
+ * - Fixed: All `createAISession` calls now include `outputLanguage: 'en'` (fixes warning).
+ * - Fixed: Tab switching (`switchTab`) now correctly clears/restores all UI elements.
+ * - Fixed: Organizer (`organizeTabs`) now correctly parses AI JSON responses and is functional.
+ * - Fixed: Doc Flow (`generateWorkflowGuide`) is rewritten to be functional and reliable.
  */
 
 'use strict';
 
-// GLOBAL STATE
-let currentAuditReport = '';
+// Using jsPDF and html2canvas for PDF export
+const { jsPDF } = window.jspdf;
+
+// --- GLOBAL STATE ---
+let currentAuditReport = ''; // Stores raw Markdown for the audit
 let currentAuditUrl = '';
 let currentTabGroups = [];
 let isRecording = false;
 let docFlowSteps = [];
 let activeDocFlowTabId = null;
 
+// --- NEW STATE VARIABLES FOR BUGFIXES ---
+let currentAuditReportHTML = '';      // Caches the rendered HTML for the Auditor tab
+let currentOrganizerReportHTML = ''; // Caches the rendered HTML for the Organizer tab
+let currentDocFlowReportHTML = '';  // Caches the rendered HTML for the Doc Flow tab
+let currentValidTabs = [];          // Caches the tab list for the Organizer
+
 const elements = {};
 
-// INITIALIZATION - WITH ROBUST AI CHECK
+// INITIALIZATION
 document.addEventListener('DOMContentLoaded', async () => {
-    console.log('🚀 Spectrum AI Pro V3.0 - Competition Edition');
-
+    console.log('🚀 Spectrum AI Pro V3.2 - Competition Edition (Bugfixed)');
     cacheElements();
     setupEventListeners();
 
-    if (elements.results) {
-        elements.results.innerHTML = `
-            <div class="placeholder">
-                <div class="loader" style="display: block;"></div>
-                <h2 style="margin-top: 24px;">Checking AI...</h2>
-            </div>
-        `;
-    }
+    // Show initial placeholder
+    elements.results.innerHTML = getPlaceholderHTML('auditor');
 
+    // Check for AI
     const aiReady = await checkAIAvailability();
 
     if (!aiReady) {
         console.error('❌ AI not ready');
-        if (elements.results) {
-            elements.results.innerHTML = `
-                <div class="placeholder error">
-                    <h2>AI system not detected or permission denied.</h2>
-                    <p>Please enable AI features in chrome://flags and reload.</p>
-                </div>
-            `;
-        }
+        showError("AI system not detected or permission denied.", "Please enable AI features in chrome://flags (see setup page) and reload the extension.");
+        // Disable all buttons
+        document.querySelectorAll('button').forEach(btn => btn.disabled = true);
+        document.querySelectorAll('input').forEach(inp => inp.disabled = true);
         return;
     }
-
-    if (elements.results) elements.results.innerHTML = '';
 
     updateStatus('audit', 'Ready to analyze', 'info');
     updateStatus('organizer', 'Ready to organize tabs', 'info');
     updateStatus('docFlow', 'Ready to record workflow', 'info');
 
-    console.log('✅ Spectrum AI Pro V3.0 ready!');
+    // Listen for messages from popup or service worker
+    chrome.runtime.onMessage.addListener((request) => {
+        if (request.action === 'runAuditFromPopup') {
+            switchTab('auditor');
+            runAudit();
+        } else if (request.action === 'organizeTabsFromPopup') {
+            switchTab('organizer');
+            organizeTabs();
+        } else if (request.action === 'startDocFlowRecording') {
+            // This message comes from the service worker, triggered by popup
+            switchTab('docFlow');
+            startDocFlow();
+        }
+    });
+
+    console.log('✅ Spectrum AI Pro V3.2 ready!');
 });
 
-// CACHE DOM ELEMENTS FOR EASY ACCESS
+// CACHE DOM ELEMENTS
 function cacheElements() {
     elements.viewModeBtns = document.querySelectorAll('.view-mode-btn');
     elements.contentWrapper = document.querySelector('.content-wrapper');
     elements.tabs = document.querySelectorAll('.tab-link');
     elements.tabContents = document.querySelectorAll('.tab-content');
 
-    // Auditor Elements
+    // Auditor
     elements.auditButton = document.getElementById('auditButton');
     elements.auditStatus = document.getElementById('auditStatus');
-    elements.auditStatusText = document.getElementById('auditStatusText');
+    elements.auditStatusText = document.getElementById('statusText');
     elements.auditLoader = document.getElementById('auditLoader');
     elements.aiActionsPanel = document.getElementById('aiActionsPanel');
     elements.summarizeButton = document.getElementById('summarizeButton');
@@ -76,7 +95,7 @@ function cacheElements() {
     elements.auditorChatInput = document.getElementById('auditorChatInput');
     elements.auditorChatSend = document.getElementById('auditorChatSend');
 
-    // Organizer Elements
+    // Organizer
     elements.organizeTabsButton = document.getElementById('organizeTabsButton');
     elements.organizerStatus = document.getElementById('organizerStatus');
     elements.organizerStatusText = document.getElementById('organizerStatusText');
@@ -86,189 +105,290 @@ function cacheElements() {
     elements.organizerChatInput = document.getElementById('organizerChatInput');
     elements.organizerChatSend = document.getElementById('organizerChatSend');
 
-    // Doc Flow Elements
-    // Doc Flow Elements
+    // Doc Flow
     elements.startDocFlowButton = document.getElementById('startDocFlowButton');
     elements.stopDocFlowButton = document.getElementById('stopDocFlowButton');
+    elements.manualScreenshotButton = document.getElementById('manualScreenshotButton');
     elements.docFlowStatus = document.getElementById('docFlowStatus');
     elements.docFlowStatusText = document.getElementById('docFlowStatusText');
     elements.docFlowLoader = document.getElementById('docFlowLoader');
     elements.docFlowActionsPanel = document.getElementById('docFlowActionsPanel');
     elements.generalizeWorkflowButton = document.getElementById('generalizeWorkflowButton');
     elements.generateQaButton = document.getElementById('generateQaButton');
-    elements.downloadPdfButton = document.getElementById('downloadPdfButton');
+    elements.downloadDocFlowPdfButton = document.getElementById('downloadDocFlowPdfButton');
     elements.docFlowChatContainer = document.getElementById('docFlowChatContainer');
     elements.docFlowChatMessages = document.getElementById('docFlowChatMessages');
     elements.docFlowChatInput = document.getElementById('docFlowChatInput');
     elements.docFlowChatSend = document.getElementById('docFlowChatSend');
 
-    // History Elements
+    // History
     elements.historySearchInput = document.getElementById('historySearchInput');
     elements.clearHistoryButton = document.getElementById('clearHistoryButton');
     elements.exportHistoryButton = document.getElementById('exportHistoryButton');
     elements.importHistoryButton = document.getElementById('importHistoryButton');
 
-    // Results
+    // Results Panel
     elements.results = document.getElementById('results');
+    elements.reportInfo = document.getElementById('reportInfo');
+    elements.reportUrl = document.getElementById('reportUrl');
+    elements.reportDate = document.getElementById('reportDate');
     elements.copyReportButton = document.getElementById('copyReportButton');
     elements.downloadPdfButton = document.getElementById('downloadPdfButton');
     elements.downloadJsonButton = document.getElementById('downloadJsonButton');
-
-    // Settings and Help buttons
-    elements.settingsBtn = document.getElementById('settingsBtn');
-    elements.helpBtn = document.getElementById('helpBtn');
 }
 
 // SETUP ALL EVENT LISTENERS
 function setupEventListeners() {
     // View modes
-    if (elements.viewModeBtns) {
-        elements.viewModeBtns.forEach(btn => {
-            btn.addEventListener('click', () => {
-                elements.viewModeBtns.forEach(b => b.classList.remove('active'));
-                btn.classList.add('active');
+    elements.viewModeBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+            elements.viewModeBtns.forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            const mode = btn.dataset.mode;
+            elements.contentWrapper.className = 'content-wrapper';
 
-                const mode = btn.dataset.mode;
-                elements.contentWrapper.className = 'content-wrapper';
-
-                if (mode === 'split') elements.contentWrapper.classList.add('split-view');
-                else if (mode === 'results') elements.contentWrapper.classList.add('results-only');
-                else if (mode === 'chat') elements.contentWrapper.classList.add('chat-only');
-            });
+            if (mode === 'split') elements.contentWrapper.classList.add('split-view');
+            else if (mode === 'results') elements.contentWrapper.classList.add('results-only');
+            else if (mode === 'chat') elements.contentWrapper.classList.add('chat-only');
         });
-    }
+    });
 
     // Tab buttons
-    if (elements.tabs) {
-        elements.tabs.forEach(tab => {
-            tab.addEventListener('click', () => switchTab(tab.dataset.tab));
-        });
-    }
+    elements.tabs.forEach(tab => {
+        tab.addEventListener('click', () => switchTab(tab.dataset.tab));
+    });
 
-    // Auditor event handlers
-    if (elements.auditButton) elements.auditButton.addEventListener('click', runAudit);
-    if (elements.summarizeButton) elements.summarizeButton.addEventListener('click', summarizeReport);
-    if (elements.proofreadButton) elements.proofreadButton.addEventListener('click', proofreadReport);
-    if (elements.rewriteTitleButton) elements.rewriteTitleButton.addEventListener('click', rewriteTitle);
-    if (elements.auditorChatSend) elements.auditorChatSend.addEventListener('click', () => sendChatMessage('auditor'));
-    if (elements.auditorChatInput) {
-        elements.auditorChatInput.addEventListener('keypress', e => {
-            if (e.key === 'Enter') sendChatMessage('auditor');
-        });
-    }
+    // Auditor
+    elements.auditButton.addEventListener('click', runAudit);
+    elements.summarizeButton.addEventListener('click', summarizeReport);
+    elements.proofreadButton.addEventListener('click', proofreadReport);
+    elements.rewriteTitleButton.addEventListener('click', rewriteTitle);
+    elements.auditorChatSend.addEventListener('click', () => sendChatMessage('auditor'));
+    elements.auditorChatInput.addEventListener('keypress', e => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            sendChatMessage('auditor');
+        }
+    });
 
-    // Organizer event handlers
-    if (elements.organizeTabsButton) elements.organizeTabsButton.addEventListener('click', organizeTabs);
-    if (elements.organizerChatSend) elements.organizerChatSend.addEventListener('click', () => sendChatMessage('organizer'));
-    if (elements.organizerChatInput) {
-        elements.organizerChatInput.addEventListener('keypress', e => {
-            if (e.key === 'Enter') sendChatMessage('organizer');
-        });
-    }
+    // Organizer
+    elements.organizeTabsButton.addEventListener('click', organizeTabs);
+    elements.organizerChatSend.addEventListener('click', () => sendChatMessage('organizer'));
+    elements.organizerChatInput.addEventListener('keypress', e => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            sendChatMessage('organizer');
+        }
+    });
 
-    // Doc Flow event handlers
-    if (elements.startDocFlowButton) elements.startDocFlowButton.addEventListener('click', startDocFlow);
-    if (elements.stopDocFlowButton) elements.stopDocFlowButton.addEventListener('click', stopDocFlow);
-    if (elements.generalizeWorkflowButton) elements.generalizeWorkflowButton.addEventListener('click', generalizeWorkflow);
-    if (elements.generateQaButton) elements.generateQaButton.addEventListener('click', generateQa);
-    if (elements.downloadPdfButton) elements.downloadPdfButton.addEventListener('click', downloadPdf);
-    if (elements.docFlowChatSend) elements.docFlowChatSend.addEventListener('click', () => sendChatMessage('docFlow'));
-    if (elements.docFlowChatInput) {
-        elements.docFlowChatInput.addEventListener('keypress', e => {
-            if (e.key === 'Enter') sendChatMessage('docFlow');
-        });
-    }
+    // Doc Flow
+    elements.startDocFlowButton.addEventListener('click', startDocFlow);
+    elements.stopDocFlowButton.addEventListener('click', stopDocFlow);
+    elements.manualScreenshotButton.addEventListener('click', takeManualScreenshot);
+    elements.generalizeWorkflowButton.addEventListener('click', generalizeWorkflow);
+    elements.generateQaButton.addEventListener('click', generateQa);
+    elements.downloadDocFlowPdfButton.addEventListener('click', () => downloadPdf('docFlow'));
+    elements.docFlowChatSend.addEventListener('click', () => sendChatMessage('docFlow'));
+    elements.docFlowChatInput.addEventListener('keypress', e => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            sendChatMessage('docFlow');
+        }
+    });
 
-    // History event handlers
-    if (elements.historySearchInput) elements.historySearchInput.addEventListener('input', searchHistory);
-    if (elements.clearHistoryButton) elements.clearHistoryButton.addEventListener('click', clearHistory);
-    if (elements.exportHistoryButton) elements.exportHistoryButton.addEventListener('click', exportHistory);
-    if (elements.importHistoryButton) elements.importHistoryButton.addEventListener('click', importHistory);
+    // History
+    elements.historySearchInput.addEventListener('input', searchHistory);
+    elements.clearHistoryButton.addEventListener('click', clearHistory);
+    elements.exportHistoryButton.addEventListener('click', exportHistory);
+    elements.importHistoryButton.addEventListener('click', importHistory);
 
-    // Copy and Export buttons
-    if (elements.copyReportButton) elements.copyReportButton.addEventListener('click', copyReport);
-    if (elements.downloadPdfButton) elements.downloadPdfButton.addEventListener('click', downloadPdf);
-    if (elements.downloadJsonButton) elements.downloadJsonButton.addEventListener('click', downloadJson);
-
-    // Settings and Help buttons
-    if (elements.settingsBtn) elements.settingsBtn.addEventListener('click', () => alert("Settings coming soon!"));
-    if (elements.helpBtn) elements.helpBtn.addEventListener('click', () => alert("Help and documentation coming soon!"));
+    // Report Actions
+    elements.copyReportButton.addEventListener('click', copyReport);
+    elements.downloadPdfButton.addEventListener('click', () => downloadPdf('auditor'));
+    elements.downloadJsonButton.addEventListener('click', downloadJson);
 }
 
 
-// SWITCH TABS
+// --- ★★★ BUGFIXED: TAB SWITCHING ★★★ ---
 function switchTab(tabName) {
+    // 1. Switch active tab link
     elements.tabs.forEach(tab => {
         const isActive = tab.dataset.tab === tabName;
         tab.classList.toggle('active', isActive);
-        tab.setAttribute('aria-selected', isActive);
+        tab.setAttribute('aria-selected', isActive.toString());
     });
+
+    // 2. Switch active tab content panel (in the left column)
     elements.tabContents.forEach(content => {
         const isActive = content.id === tabName;
         content.classList.toggle('active', isActive);
         content.hidden = !isActive;
     });
-    if (tabName === 'history') loadHistory();
+
+    // 3. --- FIX: Reset the right "Results" panel ---
+    // Hide all action/export panels
+    elements.aiActionsPanel.style.display = 'none';
+    elements.docFlowActionsPanel.style.display = 'none';
+    elements.auditorChatContainer.style.display = 'none';
+    elements.organizerChatContainer.style.display = 'none';
+    elements.docFlowChatContainer.style.display = 'none';
+    elements.copyReportButton.style.display = 'none';
+    elements.downloadPdfButton.style.display = 'none';
+    elements.downloadJsonButton.style.display = 'none';
+    elements.reportInfo.style.display = 'none';
+
+    // Clear results panel
+    elements.results.innerHTML = '';
+
+    // 4. --- FIX: Restore the correct content for the tab ---
+    switch (tabName) {
+        case 'auditor':
+            if (currentAuditReportHTML) {
+                // Restore cached report
+                elements.results.innerHTML = currentAuditReportHTML;
+                // Re-find and assign chart canvas if it exists
+                const chartCanvas = elements.results.querySelector('#auditScoreChart');
+                if (chartCanvas && currentAuditReport.scores) {
+                    renderAuditScoreChart(chartCanvas, currentAuditReport.scores);
+                }
+                elements.aiActionsPanel.style.display = 'grid';
+                elements.auditorChatContainer.style.display = 'block';
+                elements.copyReportButton.style.display = 'block';
+                elements.downloadPdfButton.style.display = 'block';
+                elements.downloadJsonButton.style.display = 'block';
+                setReportInfo(currentAuditUrl, currentAuditReport.date);
+            } else {
+                elements.results.innerHTML = getPlaceholderHTML('auditor');
+            }
+            break;
+        case 'organizer':
+            if (currentOrganizerReportHTML) {
+                // Restore cached report
+                elements.results.innerHTML = currentOrganizerReportHTML;
+                elements.organizerChatContainer.style.display = 'block';
+                setupOrganizerEventDelegation(); // Re-attach listeners
+            } else {
+                elements.results.innerHTML = getPlaceholderHTML('organizer');
+            }
+            break;
+        case 'docFlow':
+            if (currentDocFlowReportHTML) {
+                // Restore cached guide
+                elements.results.innerHTML = currentDocFlowReportHTML;
+                elements.docFlowActionsPanel.style.display = 'grid';
+                elements.docFlowChatContainer.style.display = 'block';
+            } else {
+                elements.results.innerHTML = getPlaceholderHTML('docFlow');
+            }
+            // Sync recording button state
+            elements.startDocFlowButton.style.display = isRecording ? 'none' : 'block';
+            elements.stopDocFlowButton.style.display = isRecording ? 'block' : 'none';
+            elements.manualScreenshotButton.style.display = isRecording ? 'block' : 'none';
+            break;
+        case 'history':
+            // History tab content is in the LEFT panel, not the results panel.
+            // The results panel should just show a placeholder.
+            elements.results.innerHTML = getPlaceholderHTML('history');
+            loadHistory(); // This populates the left panel
+            break;
+        default:
+            elements.results.innerHTML = getPlaceholderHTML('auditor');
+    }
 }
 
-// CHECK AI AVAILABILITY
+// --- ★★★ FIXED: AI AVAILABILITY CHECK ★★★ ---
 async function checkAIAvailability() {
     try {
-        if (typeof self.ai !== 'undefined' && self.ai.languageModel) {
-            const testSession = await self.ai.languageModel.create({ language: 'en', outputLanguage: 'en' });
-            testSession.destroy();
-            return true;
-        } else if (typeof self.LanguageModel !== 'undefined') {
-            const testSession = await self.LanguageModel.create({ language: 'en', outputLanguage: 'en' });
-            testSession.destroy();
-            return true;
-        } else {
+        if (typeof self.LanguageModel === 'undefined') {
+            console.error('self.LanguageModel is not defined.');
             return false;
         }
-    } catch {
+        const availability = await self.LanguageModel.availability();
+
+        // FIX: Accept 'available' as well as 'readily'
+        if (availability !== 'readily' && availability !== 'available') {
+             console.error('AI Model is not ready. Status:', availability);
+             return false;
+        }
+
+        const session = await createAISession();
+        if (session) {
+            session.destroy();
+            return true;
+        }
+        return false;
+    } catch(e) {
+        console.error('AI Availability Check Failed:', e);
         return false;
     }
 }
 
-// AUDITOR FUNCTIONS
+// --- AUDITOR FUNCTIONS ---
 async function runAudit() {
     if (!await checkAIAvailability()) {
-        showError("AI is not available");
+        showError("AI is not available. Please check Chrome flags.", "auditor");
         return;
     }
 
+    // Reset state
     elements.auditButton.disabled = true;
     showLoader('audit', true);
     updateStatus('audit', 'Fetching page content...', 'info');
+    currentAuditReport = '';
+    currentAuditReportHTML = '';
+    elements.results.innerHTML = '<div class="results-wrapper"></div>'; // Clear previous results
+
+    let content, url, title;
+    try {
+        const pageData = await getPageContent();
+        content = pageData.content;
+        url = pageData.url;
+        title = pageData.title;
+        currentAuditUrl = url;
+    } catch (error) {
+        console.error('Audit error:', error);
+        updateStatus('audit', `Failed: ${error.message}`, 'error');
+        showError(error.message, 'auditor');
+        elements.auditButton.disabled = false;
+        showLoader('audit', false);
+        return;
+    }
+
+    if (!content || !content.trim()) {
+        showError('Page content is empty or could not be accessed.', "auditor");
+        elements.auditButton.disabled = false;
+        showLoader('audit', false);
+        return;
+    }
+
+    const reportDate = new Date();
+    setReportInfo(url, reportDate.toISOString());
 
     try {
-        const { content, url } = await getPageContent();
-        currentAuditUrl = url;
+        const report = await performAudit(content.substring(0, 8000), url, title);
+        currentAuditReport = {
+            markdown: report.markdown,
+            scores: report.scores,
+            date: reportDate.toISOString()
+        };
 
-        if (!content || !content.trim()) {
-            throw new Error('Page content is empty');
-        }
+        // Cache the final HTML
+        currentAuditReportHTML = elements.results.innerHTML;
 
-        // Clear previous results and show loader
-        elements.results.innerHTML = '';
-        elements.results.style.display = 'block'; // Ensure detailed report is visible
-
-        const report = await performAudit(content.substring(0, 8000));
-        currentAuditReport = report;
-
-        if (elements.aiActionsPanel) elements.aiActionsPanel.style.display = 'grid'; // Use grid as defined in CSS
-        if (elements.auditorChatContainer) elements.auditorChatContainer.style.display = 'block';
-        if (elements.copyReportButton) elements.copyReportButton.style.display = 'block';
-        if (elements.downloadPdfButton) elements.downloadPdfButton.style.display = 'block';
-        if (elements.downloadJsonButton) elements.downloadJsonButton.style.display = 'block';
+        // Show action buttons
+        elements.aiActionsPanel.style.display = 'grid';
+        elements.auditorChatContainer.style.display = 'block';
+        elements.copyReportButton.style.display = 'block';
+        elements.downloadPdfButton.style.display = 'block';
+        elements.downloadJsonButton.style.display = 'block';
 
         updateStatus('audit', 'Audit complete!', 'success');
-        await saveAudit(url, report);
+        await saveAudit(url, title, report.markdown, currentAuditReportHTML, report.scores); // Save to history
 
     } catch (error) {
         console.error('Audit error:', error);
         updateStatus('audit', `Failed: ${error.message}`, 'error');
-        showError(error.message);
+        showError(error.message, 'auditor');
     } finally {
         elements.auditButton.disabled = false;
         showLoader('audit', false);
@@ -276,24 +396,44 @@ async function runAudit() {
 }
 
 
-async function performAudit(content) {
+async function performAudit(content, url, title) {
     const session = await createAISession();
-    let fullReport = '';
+    let fullReport = `<h1>📊 Enhanced Auditor Report</h1>`;
+    let fullMarkdown = `# 📊 Enhanced Auditor Report\n`;
 
     const auditAreas = [
-        "Technical Foundation", "Accessibility (A11y)", "Performance", "Security",
+        "Technical Foundation", "Accessibility (a11y)", "Performance", "Security",
         "User Experience (UX)", "Content Quality", "SEO On-Page", "Link Architecture",
         "Conversion Optimization", "Analytics", "Competitive Position", "Mobile Readiness"
     ];
 
     elements.results.innerHTML = '<div class="results-wrapper"></div>';
     const resultsWrapper = elements.results.querySelector('.results-wrapper');
+    resultsWrapper.innerHTML = fullReport; // Add header immediately
+
+    // Add Chart placeholder
+    const chartCanvas = document.createElement('canvas');
+    chartCanvas.id = 'auditScoreChart';
+    resultsWrapper.appendChild(chartCanvas);
+
+    let scores = {};
 
     for (let i = 0; i < auditAreas.length; i++) {
         const area = auditAreas[i];
         updateStatus('audit', `Analyzing ${i + 1}/${auditAreas.length}: ${area}...`, 'info');
 
-        const prompt = `You are an expert web auditor. Analyze the following page content for **${area}**.\n\n**CRITICAL RULES:**\n- Start with the section header: ## ${area} [X/10]\n- Provide a score out of 10 in the header.\n- Follow with "### Assessment", "### Key Issues", and "### Recommendation".\n- Use bullet points for issues and recommendations.\n- Be concise and actionable.\n\nPAGE CONTENT:\n${content}`;
+        const prompt = `You are an expert web auditor. Analyze the following page content for **${area}**.
+        Page URL is ${url}, Title is "${title}".
+
+        **CRITICAL RULES:**
+        - Start with the section header: ## ${area} [X/10]
+        - Provide a score out of 10 in the header.
+        - Follow with "### Assessment", "### Key Issues", and "### Recommendation".
+        - Use bullet points for issues and recommendations.
+        - Be concise and actionable.
+
+        PAGE CONTENT (first 4000 chars):
+        ${content}`;
 
         const sectionElement = document.createElement('div');
         sectionElement.className = 'audit-section';
@@ -306,17 +446,32 @@ async function performAudit(content) {
                 sectionContent += chunk;
                 sectionElement.innerHTML = renderMarkdown(sectionContent);
             }
-            fullReport += sectionContent + '\n\n';
+            fullMarkdown += sectionContent + '\n\n';
+
+            // Try to parse score
+            const scoreMatch = sectionContent.match(/\[(\d+)\/10\]/);
+            if (scoreMatch) {
+                scores[area] = parseInt(scoreMatch[1], 10) * 10; // Convert to /100
+            }
+
         } catch (error) {
             console.error(`Error auditing ${area}:`, error);
-            sectionElement.innerHTML = `<h3>Error analyzing ${area}</h3><p>${error.message}</p>`;
-            fullReport += `## ${area} [0/10]\n\nError: ${error.message}\n\n`;
+            const errorMarkdown = `## ${area} [0/10]\n\nError: ${error.message}\n\n`;
+            sectionElement.innerHTML = renderMarkdown(errorMarkdown);
+            fullMarkdown += errorMarkdown;
         }
     }
 
     // Final summary
     updateStatus('audit', `Generating Executive Summary...`, 'info');
-    const summaryPrompt = `Based on the following audit sections, create a final "## Executive Summary".\n\nInclude:\n- **Overall Grade:** (A+ to F)\n- **Top Priority:** (The single most important issue to fix)\n- **Quick Wins:** (2-3 easy-to-implement improvements)\n\nAUDIT SECTIONS:\n${fullReport}`;
+    const summaryPrompt = `Based on the following audit sections, create a final "## Executive Summary".
+    Include:
+    - **Overall Grade:** (A+ to F)
+    - **Top Priority:** (The single most important issue to fix)
+    - **Quick Wins:** (2-3 easy-to-implement improvements)
+
+    AUDIT SECTIONS:
+    ${fullMarkdown}`;
 
     const summaryElement = document.createElement('div');
     summaryElement.className = 'audit-section';
@@ -328,35 +483,41 @@ async function performAudit(content) {
             summaryContent += chunk;
             summaryElement.innerHTML = renderMarkdown(summaryContent);
         }
-        fullReport += summaryContent;
+        fullMarkdown += summaryContent;
     } catch (error) {
         console.error('Error generating summary:', error);
         summaryElement.innerHTML = `<h3>Error generating summary</h3><p>${error.message}</p>`;
     }
 
-
     session.destroy();
-    return fullReport;
+
+    // Render the chart
+    renderAuditScoreChart(chartCanvas, scores);
+
+    return { markdown: fullMarkdown, scores: scores };
 }
 
 async function summarizeReport() {
-    if (!currentAuditReport) return;
-
+    if (!currentAuditReport.markdown) return;
     const prompt = `Summarize this audit report into a concise executive summary. Focus on the top 3 issues and recommendations. Format the output in Markdown.
-
-REPORT:
-${currentAuditReport}`;
-
+    REPORT:
+    ${currentAuditReport.markdown}`;
     await runAIActionStreaming(prompt, 'Summarizing...', 'audit', '📋 Summary');
 }
 
 async function proofreadReport() {
-    if (!currentAuditReport) return;
+    let content;
+    try {
+        const pageData = await getPageContent();
+        content = pageData.content;
+    } catch (error) {
+        updateStatus('audit', `Failed: ${error.message}`, 'error');
+        return;
+    }
 
-    const prompt = `Proofread the following audit report for grammar, spelling, clarity, and conciseness. Return the complete corrected Markdown report.
-
-REPORT:
-${currentAuditReport}`;
+    const prompt = `Proofread the following text from the audited page for grammar, spelling, clarity, and conciseness. List any grammatical errors, spelling mistakes, or awkward phrasing you find.
+    PAGE TEXT (first 4000 chars):
+    ${content.substring(0, 4000)}`;
 
     await runAIActionStreaming(prompt, 'Proofreading...', 'audit', '✏️ Proofread Report');
 }
@@ -365,8 +526,7 @@ async function rewriteTitle() {
     try {
         const { title } = await getPageContent();
         const prompt = `Current page title: "${title}". Generate 5 SEO-optimized alternative titles, each under 60 characters. Present them as a numbered Markdown list.
-
-PAGE TITLE: ${title}`;
+    PAGE TITLE: ${title}`;
         await runAIActionStreaming(prompt, 'Generating titles...', 'audit', '💡 Rewritten Titles');
     } catch (error) {
         updateStatus('audit', 'Could not get page title', 'error');
@@ -388,7 +548,9 @@ async function runAIActionStreaming(prompt, statusMessage, type, resultTitle) {
         actionResultDiv.style.paddingTop = '24px';
         actionResultDiv.style.borderTop = '2px solid var(--border)';
         actionResultDiv.innerHTML = `<h2>${resultTitle}</h2>`;
-        resultsWrapper.appendChild(actionResultDiv);
+
+        // Prepend to show at the top
+        resultsWrapper.prepend(actionResultDiv);
 
         let fullResult = '';
         for await (const chunk of stream) {
@@ -398,6 +560,10 @@ async function runAIActionStreaming(prompt, statusMessage, type, resultTitle) {
         session.destroy();
 
         updateStatus(type, 'Complete!', 'success');
+        // Re-cache the HTML with the new action result
+        currentAuditReportHTML = elements.results.innerHTML;
+        currentAuditReport.date = new Date().toISOString(); // Update date on modification
+
     } catch (error) {
         console.error('AI action error:', error);
         updateStatus(type, `Failed: ${error.message}`, 'error');
@@ -406,209 +572,148 @@ async function runAIActionStreaming(prompt, statusMessage, type, resultTitle) {
     }
 }
 
-// HELPER FUNCTIONS
+// --- ★★★ ORGANIZER FUNCTIONS (BUGFIXED) ★★★ ---
 
-async function createAISession() {
-    if (typeof self.ai !== 'undefined' && self.ai.languageModel) {
-        return await self.ai.languageModel.create({
-            systemPrompt: 'You are a helpful AI assistant. Provide clear, actionable advice.',
-            language: 'en',
-            outputLanguage: 'en'
-        });
-    } else if (typeof self.LanguageModel !== 'undefined') {
-        return await self.LanguageModel.create({ language: 'en', outputLanguage: 'en' });
-    }
-    throw new Error('AI not available');
-}
-
-async function getPageContent() {
-    try {
-        const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-        if (!tab) throw new Error('No active tab');
-        if (tab.url.startsWith('chrome://') || tab.url.startsWith('chrome-extension://') || tab.url.startsWith('about:')) {
-            throw new Error('Cannot access Chrome internal pages or extensions');
-        }
-        const [{ result }] = await chrome.scripting.executeScript({
-            target: { tabId: tab.id },
-            func: () => ({
-                content: document.body.innerText,
-                url: window.location.href,
-                title: document.title
-            })
-        });
-        return result;
-    } catch (error) {
-        throw new Error(`Cannot access page: ${error.message}`);
-    }
-}
-
-function updateStatus(type, message, level = 'info') {
-    const statusElement = elements[`${type}Status`];
-    const textElement = elements[`${type}StatusText`];
-    if (!statusElement || !textElement) return;
-
-    statusElement.style.display = 'block';
-    statusElement.className = `status-message ${level}`;
-    textElement.textContent = message;
-}
-
-function showLoader(type, show = true) {
-    const loader = elements[`${type}Loader`];
-    if (loader) loader.style.display = show ? 'block' : 'none';
-}
-
-function showError(message) {
-    if (!elements.results) return;
-    elements.results.innerHTML = `
-        <div class="placeholder error">
-            <div style="font-size: 64px; margin-bottom: 20px;">⚠️</div>
-            <h2>Error</h2>
-            <p>${escapeHtml(message)}</p>
-        </div>
-    `;
-}
-
-function copyReport() {
-    if (!currentAuditReport) return;
-
-    navigator.clipboard.writeText(currentAuditReport).then(() => {
-        updateStatus('audit', '📋 Copied!', 'success');
-        setTimeout(() => updateStatus('audit', 'Ready to analyze', 'info'), 2000);
-    });
-}
-
-function escapeHtml(text) {
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
-}
-
-// Markdown renderer for limited markdown to HTML
-function renderMarkdown(text) {
-    if (!text) return '';
-    return marked.parse(text);
-}
-
-// ORGANIZER FUNCTIONS
-
-// Organize open tabs into groups with AI assistance
 async function organizeTabs() {
     if (!await checkAIAvailability()) {
-        showError("AI is not available");
+        showError("AI is not available", "organizer");
         return;
     }
 
     elements.organizeTabsButton.disabled = true;
     showLoader('organizer', true);
     updateStatus('organizer', 'Analyzing tabs...', 'info');
+    currentOrganizerReportHTML = ''; // Clear cache
+    currentTabGroups = [];
+    currentValidTabs = [];
+    elements.results.innerHTML = ''; // Clear results panel
 
     try {
-        const tabs = await chrome.tabs.query({ windowType: 'normal' });
+        const tabs = await chrome.tabs.query({ windowId: chrome.windows.WINDOW_ID_CURRENT });
 
         if (tabs.length < 2) {
             updateStatus('organizer', 'Need at least 2 tabs', 'warning');
-            if (elements.results) {
-                elements.results.innerHTML = `
-                    <div class="placeholder">
-                        <div style="font-size: 64px;">📂</div>
-                        <h2>Not Enough Tabs</h2>
-                        <p>Open at least 2 tabs to organize</p>
-                    </div>
-                `;
-            }
+            elements.results.innerHTML = getPlaceholderHTML('organizer', 'Not Enough Tabs', 'Open at least 2 tabs to organize.');
+            elements.organizeTabsButton.disabled = false;
+            showLoader('organizer', false);
             return;
         }
 
-        // Filter out invalid tabs (chrome://, extension pages, about:)
         const validTabs = tabs.filter(tab =>
             tab.url &&
             !tab.url.startsWith('chrome://') &&
             !tab.url.startsWith('chrome-extension://') &&
-            !tab.url.startsWith('about:')
+            !tab.url.startsWith('about:') &&
+            !tab.pinned
         );
+        currentValidTabs = validTabs; // Cache for later use
 
         if (validTabs.length === 0) {
-            throw new Error('No valid tabs found');
+            throw new Error('No valid tabs found (e.g., all are chrome:// pages or pinned).');
         }
 
         updateStatus('organizer', 'Grouping with AI...', 'info');
 
-        const tabInfo = validTabs.map(t => `ID ${t.id}: "${t.title}" - ${new URL(t.url).hostname}`).join('\n');
+        const tabInfo = validTabs.map(t => `ID ${t.id}: "${t.title}" - ${t.url}`).join('\n');
 
-        const prompt = `Organize these browser tabs into logical groups. Output ONLY valid JSON:
-[
-  {"groupName": "Group Name", "tabIds": [1, 2, 3]},
-  {"groupName": "Another Group", "tabIds": [4, 5]}
-]
+        const prompt = `Organize these browser tabs into logical groups.
+        Tabs:
+        ${tabInfo}
 
-Tabs:
-${tabInfo}
+        Respond with ONLY a valid JSON array using this format:
+        [
+          {"groupName": "Group Name", "reason": "Short reason for grouping.", "tabIds": [1, 2, 3]},
+          {"groupName": "Another Group", "reason": "Another reason.", "tabIds": [4, 5]}
+        ]
 
-Return ONLY the JSON array.`;
+        Return ONLY the JSON array and nothing else.`;
 
         const session = await createAISession();
         const result = await session.prompt(prompt);
         session.destroy();
 
-        // Extract JSON array from response
-        // Regex to extract JSON from a Markdown code block
-        const jsonCodeBlockRegex = /```json\n([\s\S]*?)\n```/;
-        const jsonMatch = result.match(jsonCodeBlockRegex);
+        let groups;
+        try {
+            // First, try to parse as-is (for AI that *only* returns JSON)
+            groups = JSON.parse(result);
+        } catch (e) {
+            // If that fails, try to extract from a markdown block
+            const jsonCodeBlockRegex = /```json\n([\s\S]*?)\n```/;
+            const jsonMatch = result.match(jsonCodeBlockRegex);
+            if (jsonMatch && jsonMatch[1]) {
+                groups = JSON.parse(jsonMatch[1]);
+            } else {
+                console.error("AI response was not valid JSON:", result);
+                throw new Error('AI response was not in the expected JSON format.');
+            }
+        }
 
-        if (!jsonMatch || !jsonMatch[1]) throw new Error('Invalid AI response format: JSON code block not found.');
-
-        const jsonString = jsonMatch[1];
-        const groups = JSON.parse(jsonString); // Parse the extracted JSON string
         currentTabGroups = groups;
-
         displayTabGroups(groups, validTabs);
 
-        if (elements.organizerChatContainer) elements.organizerChatContainer.style.display = 'block';
+        // Cache the HTML
+        currentOrganizerReportHTML = elements.results.innerHTML;
 
+        elements.organizerChatContainer.style.display = 'block';
         updateStatus('organizer', 'Analysis complete!', 'success');
+        await saveHistoryItem({
+            id: `organizer_${Date.now()}`,
+            type: 'organizer',
+            title: `Tab Organization (${new Date().toLocaleDateString()})`,
+            html: currentOrganizerReportHTML,
+            groups: currentTabGroups,
+            tabs: validTabs.map(t => ({id: t.id, title: t.title, url: t.url, favIconUrl: t.favIconUrl}))
+        });
 
     } catch (error) {
         console.error('Organizer error:', error);
         updateStatus('organizer', `Failed: ${error.message}`, 'error');
-        showError(error.message);
+        showError(error.message, "organizer");
     } finally {
         elements.organizeTabsButton.disabled = false;
         showLoader('organizer', false);
     }
 }
 
-// Display tab groups in UI with action buttons
 function displayTabGroups(groups, tabs) {
-    if (groups.length === 0) {
-        if (elements.results) {
-            elements.results.innerHTML = `
-                <div class="placeholder">
-                    <div style="font-size: 64px;">📂</div>
-                    <h2>No Groups Found</h2>
-                </div>`;
-        }
+    if (!groups || groups.length === 0) {
+        elements.results.innerHTML = getPlaceholderHTML('organizer', 'No Groups Found', 'The AI could not find any logical groups for your tabs.');
         return;
     }
 
     let html = '<div class="report-container">';
+    const tabMap = new Map(tabs.map(t => [t.id, t]));
 
     groups.forEach((group, groupIndex) => {
+        // Ensure tabIds is an array
+        if (!Array.isArray(group.tabIds)) {
+             console.warn("Invalid group from AI, skipping:", group);
+             return; // Skip this group
+        }
+
         html += `
             <div class="organizer-group">
                 <h3>📁 ${escapeHtml(group.groupName)}</h3>
+                ${group.reason ? `<p><strong>Reason:</strong> ${escapeHtml(group.reason)}</p>` : ''}
                 <ul>
         `;
 
         group.tabIds.forEach(tabId => {
-            const tab = tabs.find(t => t.id === tabId);
-            if (tab) html += `<li>🌐 ${escapeHtml(tab.title)}</li>`;
+            const tab = tabMap.get(tabId);
+            if (tab) {
+                // Add favicon for better UX
+                html += `<li><img src="${tab.favIconUrl || 'icons/icon16.png'}" width="16" height="16"> ${escapeHtml(tab.title)}</li>`;
+            }
         });
 
         html += `
                 </ul>
                 <div class="contextual-actions">
                     <button class="ai-action-button contextual-button" data-action="create-group" data-group-index="${groupIndex}">
-                        ✨ Create Group
+                        ✨ Group Tabs
+                    </button>
+                    <button class="ai-action-button contextual-button" data-action="close-group" data-group-index="${groupIndex}">
+                        ❌ Close Tabs
                     </button>
                     <button class="ai-action-button contextual-button" data-action="summarize-group" data-group-index="${groupIndex}">
                         📋 Summarize
@@ -622,314 +727,386 @@ function displayTabGroups(groups, tabs) {
     });
 
     html += '</div>';
-
-    if (elements.results) elements.results.innerHTML = html;
-
+    elements.results.innerHTML = html;
     setupOrganizerEventDelegation();
 }
 
-// Setup click handlers for organizer group actions
 function setupOrganizerEventDelegation() {
     const resultsContainer = elements.results;
     if (!resultsContainer) return;
 
-    // Remove old listener if any
+    // Remove old listener if any to prevent duplicates
     if (resultsContainer._organizerListener) {
         resultsContainer.removeEventListener('click', resultsContainer._organizerListener);
     }
-    const newListener = async (e) => {
+
+    resultsContainer._organizerListener = async (e) => {
         const button = e.target.closest('[data-action]');
-        if (!button) return;
+        if (!button || button.disabled) return;
 
         const action = button.dataset.action;
         const groupIndex = parseInt(button.dataset.groupIndex);
+        const originalText = button.textContent;
 
-        if (action === 'create-group') await createTabGroup(groupIndex);
-        else if (action === 'summarize-group') await summarizeGroup(groupIndex);
-        else if (action === 'compare-group') await compareGroup(groupIndex);
+        // Add a loading state to the button
+        button.disabled = true;
+        button.textContent = 'Working...';
+
+        try {
+            if (action === 'create-group') {
+                await createTabGroup(groupIndex);
+                button.textContent = 'Grouped!';
+            } else if (action === 'close-group') {
+                await closeTabGroup(groupIndex);
+                // The element will be removed, no need to reset text
+            } else if (action === 'summarize-group') {
+                await summarizeGroup(groupIndex, button);
+            } else if (action === 'compare-group') {
+                await compareGroup(groupIndex, button);
+            }
+        } catch (err) {
+            console.error(`Action ${action} failed:`, err);
+            updateStatus('organizer', `Action failed: ${err.message}`, 'error');
+        } finally {
+            if (action !== 'close-group') {
+                 // Re-enable after a delay unless it was closed
+                 setTimeout(() => {
+                    button.disabled = false;
+                    button.textContent = originalText;
+                 }, 2000);
+            }
+        }
     };
 
-    resultsContainer._organizerListener = newListener;
-    resultsContainer.addEventListener('click', newListener);
+    resultsContainer.addEventListener('click', resultsContainer._organizerListener);
 }
 
-// Create Chrome tab group from AI groups
 async function createTabGroup(groupIndex) {
-    try {
-        const group = currentTabGroups[groupIndex];
-        if (!group) throw new Error('Group not found');
+    const group = currentTabGroups[groupIndex];
+    if (!group) throw new Error('Group not found');
 
-        updateStatus('organizer', 'Creating tab group...', 'info');
+    // Filter out tab IDs that might already be closed
+    const allTabs = await chrome.tabs.query({ windowId: chrome.windows.WINDOW_ID_CURRENT });
+    const allTabIds = new Set(allTabs.map(t => t.id));
+    const validTabIds = group.tabIds.filter(id => allTabIds.has(id));
 
-        const groupId = await chrome.tabs.group({ tabIds: group.tabIds });
-
-        await chrome.tabGroups.update(groupId, {
-            title: group.groupName,
-            collapsed: false,
-            color: ['blue', 'red', 'yellow', 'green', 'pink', 'purple', 'cyan', 'orange'][groupIndex % 8]
-        });
-
-        updateStatus('organizer', `✅ Group "${group.groupName}" created!`, 'success');
-    } catch (error) {
-        console.error('Create group error:', error);
-        updateStatus('organizer', `Failed: ${error.message}`, 'error');
+    if (validTabIds.length === 0) {
+         updateStatus('organizer', 'Tabs are already closed.', 'warning');
+         return;
     }
+
+    updateStatus('organizer', 'Creating tab group...', 'info');
+    const groupId = await chrome.tabs.group({ tabIds: validTabIds });
+    await chrome.tabGroups.update(groupId, {
+        title: group.groupName,
+        collapsed: false,
+        color: ['blue', 'red', 'yellow', 'green', 'pink', 'purple', 'cyan', 'orange'][groupIndex % 8]
+    });
+    updateStatus('organizer', `✅ Group "${group.groupName}" created!`, 'success');
 }
 
-// Summarize group tabs with AI
-async function summarizeGroup(groupIndex) {
+async function closeTabGroup(groupIndex) {
+    const group = currentTabGroups[groupIndex];
+    if (!group) throw new Error('Group not found');
+
+    const allTabs = await chrome.tabs.query({ windowId: chrome.windows.WINDOW_ID_CURRENT });
+    const allTabIds = new Set(allTabs.map(t => t.id));
+    const validTabIds = group.tabIds.filter(id => allTabIds.has(id));
+
+    if (validTabIds.length === 0) {
+         updateStatus('organizer', 'Tabs are already closed.', 'warning');
+         return;
+    }
+
+    updateStatus('organizer', `Closing ${validTabIds.length} tabs...`, 'info');
+    await chrome.tabs.remove(validTabIds);
+    updateStatus('organizer', `✅ Group "${group.groupName}" closed!`, 'success');
+
+    // Refresh organizer view
+    await organizeTabs();
+}
+
+async function summarizeGroup(groupIndex, buttonEl) {
+    const group = currentTabGroups[groupIndex];
+    if (!group) return;
+
+    const actionContainer = buttonEl.closest('.contextual-actions');
+    let summaryDiv = actionContainer.nextElementSibling;
+    if (!summaryDiv || !summaryDiv.classList.contains('summary-result')) {
+        summaryDiv = document.createElement('div');
+        summaryDiv.className = 'summary-result';
+        actionContainer.parentNode.insertBefore(summaryDiv, actionContainer.nextSibling);
+    }
+
+    summaryDiv.innerHTML = 'Generating summary...';
+    showLoader('organizer', true);
+
     try {
-        const group = currentTabGroups[groupIndex];
-        if (!group) throw new Error('Group not found');
+        const tabMap = new Map(currentValidTabs.map(t => [t.id, t]));
+        const groupTabs = group.tabIds.map(id => tabMap.get(id)).filter(Boolean);
+        const tabInfo = groupTabs.map(t => `- "${t.title}" (${t.url})`).join('\n');
 
-        updateStatus('organizer', 'Summarizing...', 'info');
-        showLoader('organizer', true);
+        const prompt = `Provide a concise summary for this group of tabs.
+        Group: "${group.groupName}"
+        Tabs:
+        ${tabInfo}
 
-        const tabs = await chrome.tabs.query({});
-        const groupTabs = tabs.filter(t => group.tabIds.includes(t.id));
-
-        const tabInfo = groupTabs.map(t => `- "${t.title}" (${new URL(t.url).hostname})`).join('\n');
-
-        const prompt = `Analyze this group of tabs. Provide:
-1. Common theme
-2. Key insights
-3. Recommendations
-
-Group: "${group.groupName}"
-Tabs:
-${tabInfo}
-
-Markdown format.`;
+        Respond with a 2-3 sentence summary in Markdown.`;
 
         const session = await createAISession();
         const result = await session.prompt(prompt);
         session.destroy();
 
-        if (elements.results) {
-            elements.results.innerHTML += `
-                <div class="results-wrapper" style="margin-top: 24px; padding-top: 24px; border-top: 2px solid var(--border);">
-                    <h2>📋 Summary: ${escapeHtml(group.groupName)}</h2>
-                    ${renderMarkdown(result)}
-                </div>
-            `;
-        }
-
-        updateStatus('organizer', 'Complete!', 'success');
+        summaryDiv.innerHTML = renderMarkdown(result);
+        updateStatus('organizer', 'Summary complete!', 'success');
+        currentOrganizerReportHTML = elements.results.innerHTML; // Re-cache HTML
     } catch (error) {
         console.error('Summarize error:', error);
-        updateStatus('organizer', `Failed: ${error.message}`, 'error');
+        summaryDiv.innerHTML = `<p style="color: var(--error);">Error: ${error.message}</p>`;
     } finally {
         showLoader('organizer', false);
     }
 }
 
-// Compare content of group tabs with AI
-async function compareGroup(groupIndex) {
+async function compareGroup(groupIndex, buttonEl) {
+    const group = currentTabGroups[groupIndex];
+    if (!group) return;
+
+    const actionContainer = buttonEl.closest('.contextual-actions');
+    let summaryDiv = actionContainer.nextElementSibling;
+    if (!summaryDiv || !summaryDiv.classList.contains('summary-result')) {
+        summaryDiv = document.createElement('div');
+        summaryDiv.className = 'summary-result';
+        actionContainer.parentNode.insertBefore(summaryDiv, actionContainer.nextSibling);
+    }
+
+    summaryDiv.innerHTML = 'Comparing tabs...';
+    showLoader('organizer', true);
+
     try {
-        const group = currentTabGroups[groupIndex];
-        if (!group) throw new Error('Group not found');
-
-        updateStatus('organizer', 'Comparing...', 'info');
-        showLoader('organizer', true);
-
-        const tabs = await chrome.tabs.query({});
-        const groupTabs = tabs.filter(t => group.tabIds.includes(t.id));
+        const tabMap = new Map(currentValidTabs.map(t => [t.id, t]));
+        const groupTabs = group.tabIds.map(id => tabMap.get(id)).filter(Boolean);
 
         if (groupTabs.length < 2) {
-            updateStatus('organizer', 'Need 2+ tabs to compare', 'warning');
-            showLoader('organizer', false);
-            return;
+            throw new Error("Need at least 2 tabs to compare.");
         }
 
-        const tabContents = [];
-
-        for (const tab of groupTabs.slice(0, 3)) {
+        const tabInfo = [];
+        // Get content for up to 3 tabs
+        for (let i = 0; i < Math.min(groupTabs.length, 3); i++) {
+            const tab = groupTabs[i];
             try {
                 const [{ result }] = await chrome.scripting.executeScript({
                     target: { tabId: tab.id },
-                    func: () => ({
-                        title: document.title,
-                        url: window.location.href,
-                        content: document.body.innerText.substring(0, 2000)
-                    }),
+                    func: () => document.body.innerText.substring(0, 1000)
                 });
-
-                tabContents.push(result);
-
+                tabInfo.push(`Tab ${i+1} (Title: ${tab.title}):\n${result}`);
             } catch (e) {
-                console.warn(`Could not fetch tab ${tab.id}`, e);
+                console.warn(`Could not get content for tab ${tab.id}`);
+                tabInfo.push(`Tab ${i+1} (Title: ${tab.title}): [Content not accessible]`);
             }
         }
 
-        if (tabContents.length < 2) {
-            updateStatus('organizer', 'Could not access enough tabs', 'error');
-            showLoader('organizer', false);
-            return;
-        }
+        const prompt = `Compare and contrast the following ${tabInfo.length} tabs:
+        ${tabInfo.join('\n\n')}
 
-        const comparison = tabContents.map((t, i) => `
-Tab ${i + 1}: ${t.title}
-URL: ${t.url}
-Content: ${t.content.substring(0, 500)}...
-`).join('\n---\n');
-
-        const prompt = `Compare these ${tabContents.length} websites. Provide:
-1. Similarities
-2. Differences
-3. Best for what
-4. Recommendations
-
-${comparison}
-
-Markdown format.`;
+        Provide a brief comparison in Markdown.`;
 
         const session = await createAISession();
         const result = await session.prompt(prompt);
         session.destroy();
 
-        if (elements.results) {
-            elements.results.innerHTML += `
-                <div class="results-wrapper" style="margin-top: 24px; padding-top: 24px; border-top: 2px solid var(--border);">
-                    <h2>🔍 Comparison: ${escapeHtml(group.groupName)}</h2>
-                    ${renderMarkdown(result)}
-                </div>
-            `;
-        }
-
-        updateStatus('organizer', 'Complete!', 'success');
+        summaryDiv.innerHTML = renderMarkdown(result);
+        updateStatus('organizer', 'Compare complete!', 'success');
+        currentOrganizerReportHTML = elements.results.innerHTML; // Re-cache HTML
     } catch (error) {
         console.error('Compare error:', error);
-        updateStatus('organizer', `Failed: ${error.message}`, 'error');
+        summaryDiv.innerHTML = `<p style="color: var(--error);">Error: ${error.message}</p>`;
     } finally {
         showLoader('organizer', false);
     }
 }
 
-async function generateQa() {
-    if (docFlowSteps.length === 0) {
-        updateStatus('docFlow', 'No steps to generate Q&A from.', 'warning');
-        return;
-    }
 
-    const stepDescriptions = docFlowSteps.filter(step => step.type !== 'screenshot').map((step, i) => {
-        return `Step ${i + 1}: ${step.type} on ${step.selector || step.url || step.text}`;
-    }).join('\n');
-
-    const prompt = `Generate a list of 5-10 relevant Questions and Answers (Q&A) based on the following user workflow. This Q&A should be useful for training purposes or understanding the workflow. Format the output in Markdown with clear questions and answers.
-
-WORKFLOW STEPS:
-${stepDescriptions}`;
-
-    await runAIActionStreaming(prompt, 'Generating Q&A...', 'docFlow', '❓ Workflow Q&A');
-}
-
-// DOC FLOW FUNCTIONS
-
-// Start recording workflow steps
-// Start recording workflow steps
+// --- ★★★ DOC FLOW FUNCTIONS (BUGFIXED) ★★★ ---
 async function startDocFlow() {
     try {
         const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-
-        if (!tab) {
-            updateStatus('docFlow', 'No active tab', 'error');
-            return;
-        }
-
+        if (!tab) throw new Error('No active tab');
         if (tab.url.startsWith('chrome://') || tab.url.startsWith('chrome-extension://') || tab.url.startsWith('about:')) {
             updateStatus('docFlow', 'Cannot record Chrome internal pages', 'error');
             return;
         }
 
-    // Send message to service worker to start recording
-    await chrome.runtime.sendMessage({ action: 'startDocFlowRecording' });
+        // Send message to service worker to start recording
+        // We pass the tabId so the service worker knows which tab to inject into
+        await chrome.runtime.sendMessage({ action: 'startDocFlowRecording', tabId: tab.id });
 
-    isRecording = true;
-    activeDocFlowTabId = tab.id;
-    docFlowSteps = []; // Clear previous steps
+        isRecording = true;
+        activeDocFlowTabId = tab.id;
+        docFlowSteps = []; // Clear previous steps
+        currentDocFlowReportHTML = ''; // Clear cached guide
 
-    if (elements.startDocFlowButton) elements.startDocFlowButton.style.display = 'none';
-    if (elements.stopDocFlowButton) elements.stopDocFlowButton.style.display = 'block';
-
-    updateStatus('docFlow', '🔴 Recording...', 'info');
+        elements.startDocFlowButton.style.display = 'none';
+        elements.stopDocFlowButton.style.display = 'block';
+        elements.manualScreenshotButton.style.display = 'block';
+        elements.docFlowActionsPanel.style.display = 'none';
+        elements.docFlowChatContainer.style.display = 'none';
+        elements.results.innerHTML = getPlaceholderHTML('docFlow', '🔴 Recording...', 'Perform actions in your tab. Click the screenshot button to add manual captures.');
+        updateStatus('docFlow', 'Recording...', 'info');
 
     } catch (error) {
         console.error('Start docflow error:', error);
-        updateStatus('docFlow', 'Failed to start', 'error');
+        updateStatus('docFlow', `Failed to start: ${error.message}`, 'error');
     }
 }
 
-// Stop recording, generate guide
-async function stopDocFlow() {
-    // Send message to service worker to stop recording
-    await chrome.runtime.sendMessage({ action: 'stopDocFlowRecording' });
+async function takeManualScreenshot() {
+    elements.manualScreenshotButton.disabled = true;
+    elements.manualScreenshotButton.textContent = '📸 Capturing...';
+    try {
+        await chrome.runtime.sendMessage({ action: 'manualScreenshot' });
+        updateStatus('docFlow', 'Screenshot captured!', 'success');
+    } catch (e) {
+        updateStatus('docFlow', 'Screenshot failed.', 'error');
+        console.error("Manual screenshot failed:", e);
+    }
+    setTimeout(() => {
+        elements.manualScreenshotButton.disabled = false;
+        elements.manualScreenshotButton.textContent = '📸 Take Screenshot';
+    }, 1000);
+}
 
+
+async function stopDocFlow() {
+    await chrome.runtime.sendMessage({ action: 'stopDocFlowRecording' });
     isRecording = false;
 
-    if (elements.startDocFlowButton) elements.startDocFlowButton.style.display = 'block';
-    if (elements.stopDocFlowButton) elements.stopDocFlowButton.style.display = 'none';
+    elements.startDocFlowButton.style.display = 'block';
+    elements.stopDocFlowButton.style.display = 'none';
+    elements.manualScreenshotButton.style.display = 'none';
 
     updateStatus('docFlow', 'Processing...', 'info');
     showLoader('docFlow', true);
+    elements.results.innerHTML = ''; // Clear placeholder
 
     try {
-        // Get recorded steps from service worker
         const response = await chrome.runtime.sendMessage({ action: 'getDocFlowSteps' });
         docFlowSteps = response.steps || [];
 
         if (docFlowSteps.length === 0) {
             updateStatus('docFlow', 'No steps recorded.', 'warning');
-            if (elements.results) elements.results.innerHTML = '<div class="placeholder"><h2>No steps recorded.</h2><p>Please interact with the page while recording.</p></div>';
+            elements.results.innerHTML = getPlaceholderHTML('docFlow', 'No steps recorded.', 'Please interact with the page while recording.');
+            showLoader('docFlow', false);
             return;
         }
 
-        await generateWorkflowGuide();
+        // *** REWRITTEN FUNCTION ***
+        await generateWorkflowGuide(docFlowSteps);
 
-        if (elements.docFlowActionsPanel) elements.docFlowActionsPanel.style.display = 'grid';
-        if (elements.docFlowChatContainer) elements.docFlowChatContainer.style.display = 'block';
-
+        elements.docFlowActionsPanel.style.display = 'grid';
+        elements.docFlowChatContainer.style.display = 'block';
         updateStatus('docFlow', '✅ Guide generated!', 'success');
+
+        await saveHistoryItem({
+            id: `docflow_${Date.now()}`,
+            type: 'docFlow',
+            title: `Doc Flow Guide (${new Date().toLocaleDateString()})`,
+            html: currentDocFlowReportHTML,
+            steps: docFlowSteps
+        });
 
     } catch (error) {
         console.error('Stop docflow error:', error);
         updateStatus('docFlow', `Failed to process: ${error.message}`, 'error');
+        showError(error.message, "docFlow");
     } finally {
         showLoader('docFlow', false);
     }
 }
 
-// Generate workflow instructions using AI
-async function generateWorkflowGuide() {
+/**
+ * REWRITTEN: Generates a guide from all steps in a single AI call.
+ */
+async function generateWorkflowGuide(steps) {
     const session = await createAISession();
 
-    let html = '<div class="report-container"><h2>📝 Workflow Guide</h2>';
-    let stepCounter = 0;
-
-    for (let i = 0; i < docFlowSteps.length; i++) {
-        const step = docFlowSteps[i];
-
+    // 1. Convert steps to a simplified text format for the AI
+    let screenshotIndex = 0;
+    const simplifiedSteps = steps.map(step => {
         if (step.type === 'screenshot') {
-            html += `<div class="doc-flow-step"><img src="${step.dataUrl}" alt="Screenshot for step ${stepCounter}"></div>`;
-        } else {
-            stepCounter++;
-            const prompt = `Create clear instructions for: "${step.type} - ${step.selector || step.url || step.text}". Start with an action verb. Keep it to 1-2 sentences.`;
-
-            updateStatus('docFlow', `Generating instruction for step ${stepCounter}...`, 'info');
-
-            try {
-                const stepText = await session.prompt(prompt);
-                html += `<div class="doc-flow-step"><p><strong>Step ${stepCounter}:</strong> ${escapeHtml(stepText)}</p></div>`;
-            } catch (error) {
-                html += `<div class="doc-flow-step"><p><strong>Step ${stepCounter}:</strong> Failed to generate instruction (${escapeHtml(step.type)} on ${escapeHtml(step.selector || step.url || step.text)})</p></div>`;
-            }
+            // Give screenshots a reference number
+            return `[SCREENSHOT_${screenshotIndex++}]`;
         }
+        let desc = `TYPE: ${step.type}`;
+        if (step.url) desc += `, URL: ${step.url.substring(0, 100)}`;
+        if (step.selector) desc += `, Element: ${step.selector}`;
+        if (step.text) desc += `, Text: "${step.text.substring(0, 50)}"`;
+        if (step.value) desc += `, Value: "${step.value.substring(0, 50)}"`;
+        return desc;
+    }).join('\n');
+
+    // 2. Create the AI prompt
+    const prompt = `
+        You are a technical writer creating a user-friendly training guide from a raw log of user actions.
+        The goal is a clean, step-by-step PDF-ready guide.
+
+        Analyze the following recorded steps:
+        """
+        ${simplifiedSteps}
+        """
+
+        Generate a guide in Markdown format.
+        - Create a clear, descriptive title for the workflow (e.g., "# How to Purchase an Item").
+        - Convert the raw steps into a logical, numbered list of human-readable instructions.
+        - Combine minor actions (e.g., multiple 'input' events on the same field) into single steps.
+        - Ignore 'scroll' events.
+        - For 'navigation' or 'click' steps, clearly state the action (e.g., "1. Navigate to the homepage.", "2. Click the 'Login' button.").
+        - When you see a [SCREENSHOT_X] placeholder, place that EXACT placeholder on its own line *after* the relevant instruction it illustrates. Do not forget this.
+        - Be concise and clear.
+    `;
+
+    // 3. Prepare streaming
+    const streamingReportDiv = document.createElement('div');
+    streamingReportDiv.className = 'results-wrapper';
+    elements.results.innerHTML = '';
+    elements.results.appendChild(streamingReportDiv);
+
+    let markdownGuide = '';
+    updateStatus('docFlow', 'Generating guide with AI...', 'info');
+
+    try {
+        const stream = await session.promptStreaming(prompt);
+        for await (const chunk of stream) {
+            markdownGuide += chunk;
+            streamingReportDiv.innerHTML = renderMarkdown(markdownGuide + "▌"); // ▌ is a block cursor
+        }
+    } catch (e) {
+        console.error("Doc Flow AI Error:", e);
+        showError(`AI guide generation failed: ${e.message}`, "docFlow");
+        session.destroy();
+        return;
     }
 
-    html += '</div>';
     session.destroy();
 
-    if (elements.results) elements.results.innerHTML = html;
+    // 4. Post-process: Inject screenshots
+    let finalHtml = renderMarkdown(markdownGuide);
+    const screenshotSteps = steps.filter(s => s.type === 'screenshot');
+
+    screenshotSteps.forEach((step, index) => {
+        const placeholder = `[SCREENSHOT_${index}]`;
+        const imgHtml = `<img src="${step.dataUrl}" alt="Screenshot for step ${index + 1}" style="width: 100%; border: 1px solid var(--border); border-radius: 8px; margin-top: 10px;">`;
+        // Use a regex to replace all occurrences, escaping the brackets
+        finalHtml = finalHtml.replace(new RegExp(escapeRegExp(placeholder), 'g'), imgHtml);
+    });
+
+    streamingReportDiv.innerHTML = finalHtml;
+
+    // 5. Cache the final HTML
+    currentDocFlowReportHTML = finalHtml;
 }
+
 
 // Generalize recorded workflow into template
 async function generalizeWorkflow() {
@@ -950,122 +1127,191 @@ ${stepDescriptions}`;
     await runAIActionStreaming(prompt, 'Generalizing workflow...', 'docFlow', '🔧 Generalized Workflow');
 }
 
-function downloadPdf() {
-    if (currentAuditReport) {
+async function generateQa() {
+    if (docFlowSteps.length === 0) {
+        updateStatus('docFlow', 'No steps to generate Q&A from.', 'warning');
+        return;
+    }
+
+    const stepDescriptions = docFlowSteps.filter(step => step.type !== 'screenshot').map((step, i) => {
+        return `Step ${i + 1}: ${step.type} on ${step.selector || step.url || step.text}`;
+    }).join('\n');
+
+    const prompt = `Generate a list of 5-10 relevant Questions and Answers (Q&A) based on the following user workflow. This Q&A should be useful for training purposes or understanding the workflow. Format the output in Markdown with clear questions and answers.
+
+WORKFLOW STEPS:
+${stepDescriptions}`;
+
+    await runAIActionStreaming(prompt, 'Generating Q&A...', 'docFlow', '❓ Workflow Q&A');
+}
+
+// --- ★★★ EXPORT FUNCTIONS (BUGFIXED) ★★★ ---
+
+async function downloadPdf(type) {
+    const { jsPDF } = window.jspdf;
+    const { html2canvas } = window;
+
+    let reportElement;
+    let filename = `SpectrumAI_Report_${Date.now()}.pdf`;
+    let elementToRender;
+
+    if (type === 'auditor' && currentAuditReportHTML) {
+        // We use the cached HTML to render
+        elementToRender = document.createElement('div');
+        elementToRender.innerHTML = currentAuditReportHTML;
+        // Find the wrapper inside the rendered HTML
+        reportElement = elementToRender.querySelector('.results-wrapper');
+        if (!reportElement) reportElement = elementToRender; // fallback
+
+        filename = `SpectrumAI_Audit_${currentAuditUrl.split('/')[2] || 'report'}.pdf`;
         updateStatus('audit', 'Generating PDF...', 'info');
+        showLoader('audit', true);
 
-        const { jsPDF } = window.jspdf;
-        const doc = new jsPDF();
+    } else if (type === 'docFlow' && currentDocFlowReportHTML) {
+        elementToRender = document.createElement('div');
+        elementToRender.innerHTML = currentDocFlowReportHTML;
+        reportElement = elementToRender.querySelector('.results-wrapper');
+        if (!reportElement) reportElement = elementToRender; // fallback
 
-        const title = `Spectrum AI Pro Audit Report for ${currentAuditUrl}`; // Use currentAuditUrl for title
-
-        doc.setFontSize(18);
-        doc.text(title, 14, 22);
-
-        doc.setFontSize(12);
-        doc.html(elements.results.querySelector('.results-wrapper'), {
-            callback: function (doc) {
-                doc.save(`spectrum_ai_audit_${new Date().toISOString().slice(0, 10)}.pdf`);
-                updateStatus('audit', 'PDF generated!', 'success');
-            },
-            x: 10,
-            y: 30,
-            html2canvas: {
-                scale: 0.8 // Adjust scale to fit content on page
-            }
-        });
-    } else if (docFlowSteps.length > 0) {
+        filename = `SpectrumAI_DocFlow_Guide.pdf`;
         updateStatus('docFlow', 'Generating PDF...', 'info');
+        showLoader('docFlow', true);
 
-        const { jsPDF } = window.jspdf;
-        const doc = new jsPDF();
+    } else {
+        updateStatus(type, 'No report to export.', 'warning');
+        return;
+    }
 
-        const title = `Spectrum AI Pro Workflow Guide`;
+    // Temporarily append to body to render for html2canvas
+    // This is necessary for html2canvas to correctly calculate layouts
+    reportElement.style.width = '800px'; // Define a fixed width for PDF layout
+    reportElement.style.padding = '20px';
+    reportElement.style.background = 'white';
+    document.body.appendChild(reportElement);
 
-        doc.setFontSize(18);
-        doc.text(title, 14, 22);
+    try {
+        // Redraw chart in the cloned element for canvas capture
+        const chartCanvas = reportElement.querySelector('#auditScoreChart');
+        if (chartCanvas && currentAuditReport.scores) {
+            renderAuditScoreChart(chartCanvas, currentAuditReport.scores);
+        }
 
-        doc.setFontSize(12);
-        doc.html(elements.results.querySelector('.report-container'), {
-            callback: function (doc) {
-                doc.save(`spectrum_ai_workflow_${new Date().toISOString().slice(0, 10)}.pdf`);
-                updateStatus('docFlow', 'PDF generated!', 'success');
-            },
-            x: 10,
-            y: 30,
-            html2canvas: {
-                scale: 0.7, // Adjust scale to fit content on page, especially with images
-                scrollY: -window.scrollY, // Capture full scrollable content
-                windowWidth: elements.results.scrollWidth, // Ensure full width is captured
-                windowHeight: elements.results.scrollHeight // Ensure full height is captured
+        const canvas = await html2canvas(reportElement, {
+            scale: 2, // High resolution
+            useCORS: true,
+            logging: false,
+            onclone: (doc) => {
+                // This onclone is vital for DocFlow screenshots
+                const images = doc.querySelectorAll('img');
+                const promises = [];
+                images.forEach(img => {
+                    if (!img.complete) {
+                        promises.push(new Promise((resolve, reject) => {
+                            img.onload = resolve;
+                            img.onerror = reject;
+                        }));
+                    }
+                });
+                return Promise.all(promises);
             }
         });
-    } else {
-    updateStatus('audit', 'No report or workflow to export.', 'warning');
-    updateStatus('docFlow', 'No report or workflow to export.', 'warning');
+
+        const imgData = canvas.toDataURL('image/png');
+        const pdf = new jsPDF({
+            orientation: 'p',
+            unit: 'px',
+            format: 'a4'
+        });
+
+        const pdfWidth = pdf.internal.pageSize.getWidth();
+        const pdfHeight = pdf.internal.pageSize.getHeight();
+        const imgWidth = canvas.width;
+        const imgHeight = canvas.height;
+        const ratio = imgHeight / imgWidth;
+        const imgHeightInPdf = pdfWidth * ratio;
+
+        let heightLeft = imgHeightInPdf;
+        let position = 0;
+
+        pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, imgHeightInPdf);
+        heightLeft -= pdfHeight;
+
+        while (heightLeft > 0) {
+            position -= pdfHeight;
+            pdf.addPage();
+            pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, imgHeightInPdf);
+            heightLeft -= pdfHeight;
+        }
+
+        pdf.save(filename);
+
+        updateStatus(type, 'PDF downloaded!', 'success');
+
+    } catch (e) {
+        console.error('PDF Generation Error:', e);
+        showError(`PDF Error: ${e.message}`, type);
+    } finally {
+        showLoader(type, false);
+        document.body.removeChild(reportElement); // Clean up
     }
 }
 
 function downloadJson() {
-    if (!currentAuditReport) return;
+    if (!currentAuditReport.markdown) {
+        updateStatus('audit', 'No report to export.', 'warning');
+        return;
+    }
 
     updateStatus('audit', 'Generating JSON...', 'info');
 
     // Simple parsing of Markdown to a JSON structure
-    const lines = currentAuditReport.split('\n');
+    const lines = currentAuditReport.markdown.split('\n');
     const jsonReport = {
         url: currentAuditUrl,
-        date: new Date().toISOString(),
+        date: currentAuditReport.date,
+        scores: currentAuditReport.scores,
         sections: []
     };
 
     let currentSection = null;
-    let currentContent = [];
 
     for (const line of lines) {
-        const sectionMatch = line.match(/^##\s*(.*?)\s*\[(\d+\/\d+)\]/);
+        const sectionMatch = line.match(/^##\s*(.*?)(?:\[(\d+)\/10\])?$/);
         const summaryMatch = line.match(/^##\s*Executive Summary/);
 
-        if (sectionMatch) {
+        if (sectionMatch || summaryMatch) {
             if (currentSection) {
-                jsonReport.sections.push({
-                    title: currentSection.title,
-                    score: currentSection.score,
-                    content: currentContent.join('\n').trim()
-                });
+                jsonReport.sections.push(currentSection);
             }
+
+            let title, score;
+            if (sectionMatch) {
+                title = (sectionMatch[1] || '').trim();
+                score = sectionMatch[2] ? `${sectionMatch[2]}/10` : 'N/A';
+            } else {
+                title = 'Executive Summary';
+                score = 'N/A';
+            }
+
             currentSection = {
-                title: sectionMatch[1].trim(),
-                score: sectionMatch[2].trim()
+                title: title,
+                score: score,
+                content: ""
             };
-            currentContent = [];
-        } else if (summaryMatch) {
-            if (currentSection) {
-                jsonReport.sections.push({
-                    title: currentSection.title,
-                    score: currentSection.score,
-                    content: currentContent.join('\n').trim()
-                });
-            }
-            currentSection = { title: summaryMatch[0].trim(), score: 'N/A' };
-            currentContent = [];
-        } else {
-            currentContent.push(line);
+        } else if (currentSection) {
+            currentSection.content += line + '\n';
         }
     }
 
     if (currentSection) {
-        jsonReport.sections.push({
-            title: currentSection.title,
-            score: currentSection.score,
-            content: currentContent.join('\n').trim()
-        });
+        currentSection.content = currentSection.content.trim();
+        jsonReport.sections.push(currentSection);
     }
 
     const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(jsonReport, null, 2));
     const downloadAnchorNode = document.createElement('a');
     downloadAnchorNode.setAttribute("href", dataStr);
-    downloadAnchorNode.setAttribute("download", `spectrum_ai_audit_${new Date().toISOString().slice(0, 10)}.json`);
+    downloadAnchorNode.setAttribute("download", `spectrum_ai_audit_${currentAuditUrl.split('/')[2] || 'report'}.json`);
     document.body.appendChild(downloadAnchorNode);
     downloadAnchorNode.click();
     downloadAnchorNode.remove();
@@ -1073,9 +1319,7 @@ function downloadJson() {
     updateStatus('audit', 'JSON generated!', 'success');
 }
 
-// CHAT FUNCTIONS
-
-// Send chat message in context of current tab (auditor, organizer, docFlow)
+// --- ★★★ CHAT FUNCTIONS (FIXED) ★★★ ---
 async function sendChatMessage(type) {
     const inputElement = elements[`${type}ChatInput`];
     const messagesElement = elements[`${type}ChatMessages`];
@@ -1084,71 +1328,227 @@ async function sendChatMessage(type) {
     const message = inputElement.value.trim();
     if (!message) return;
 
-    // Display user message
-    const userMsgDiv = document.createElement('div');
-    userMsgDiv.style.cssText = 'padding: 12px 16px; background: var(--accent); color: white; border-radius: 12px; margin-bottom: 10px; max-width: 85%; margin-left: auto;';
-    userMsgDiv.textContent = message;
-    messagesElement.appendChild(userMsgDiv);
-
+    addMessageToChat(type, message, 'user');
     inputElement.value = '';
 
-    // Prepare AI context based on chat type
+    // Prepare AI context
     let context = '';
-    if (type === 'auditor' && currentAuditReport) {
-        context = `Based on this audit:\n${currentAuditReport}\n\nQuestion: ${message}`;
+    if (type === 'auditor' && currentAuditReport.markdown) {
+        context = `Based on this audit:\n${currentAuditReport.markdown.substring(0, 3000)}\n\nQuestion: ${message}`;
     } else if (type === 'organizer' && currentTabGroups.length > 0) {
         const groupInfo = currentTabGroups.map(g => `${g.groupName}: ${g.tabIds.length} tabs`).join(', ');
         context = `Tabs organized into: ${groupInfo}. Question: ${message}`;
+    } else if (type === 'docFlow' && currentDocFlowReportHTML) {
+         // Use the HTML as it's cleaner than the raw markdown with placeholders
+         const tempDiv = document.createElement('div');
+         tempDiv.innerHTML = currentDocFlowReportHTML;
+         const textContent = tempDiv.innerText || tempDiv.textContent || '';
+         context = `Based on this workflow guide:\n${textContent.substring(0, 3000)}\n\nQuestion: ${message}`;
     } else {
         context = message;
     }
 
-    // Show thinking placeholder
-    const thinkingDiv = document.createElement('div');
-    thinkingDiv.style.cssText = 'padding: 12px 16px; background: var(--bg-tertiary); border-radius: 12px; margin-bottom: 10px;';
-    thinkingDiv.textContent = '💭 Thinking...';
-    messagesElement.appendChild(thinkingDiv);
+    const thinkingDiv = addMessageToChat(type, '...', 'ai', 'typing');
     messagesElement.scrollTop = messagesElement.scrollHeight;
 
     try {
         const session = await createAISession();
-        const response = await session.prompt(context);
+        // Use promptStreaming for a better UX
+        const stream = await session.promptStreaming(context);
+
+        let fullResponse = '';
+        thinkingDiv.innerHTML = ''; // Clear typing dots
+        thinkingDiv.classList.remove('typing');
+        thinkingDiv.classList.add('streaming');
+
+        for await (const chunk of stream) {
+            fullResponse += chunk;
+            thinkingDiv.innerHTML = renderMarkdown(fullResponse + "▌");
+            messagesElement.scrollTop = messagesElement.scrollHeight;
+        }
+
+        thinkingDiv.innerHTML = renderMarkdown(fullResponse); // Final render
+        thinkingDiv.classList.remove('streaming');
         session.destroy();
-
-        messagesElement.removeChild(thinkingDiv);
-
-        const aiMsgDiv = document.createElement('div');
-        aiMsgDiv.style.cssText = 'padding: 12px 16px; background: var(--bg-tertiary); border-radius: 12px; margin-bottom: 10px;';
-        aiMsgDiv.innerHTML = renderMarkdown(response);
-        messagesElement.appendChild(aiMsgDiv);
 
         messagesElement.scrollTop = messagesElement.scrollHeight;
 
     } catch (error) {
         console.error('Chat error:', error);
-        messagesElement.removeChild(thinkingDiv);
+        thinkingDiv.innerHTML = `❌ Error: ${error.message}`;
+        thinkingDiv.classList.remove('typing');
+        thinkingDiv.style.color = 'var(--error)';
+    }
+}
 
-        const errorDiv = document.createElement('div');
-        errorDiv.style.cssText = 'padding: 12px 16px; background: var(--error-light); color: var(--error); border-radius: 12px; margin-bottom: 10px;';
-        errorDiv.textContent = `❌ Error: ${error.message}`;
-        messagesElement.appendChild(errorDiv);
+/**
+ * Adds a message to the chat UI. (Using your new classes)
+ */
+function addMessageToChat(type, content, role, state = null) {
+    const messagesElement = elements[`${type}ChatMessages`];
+    const msgDiv = document.createElement('div');
+    msgDiv.classList.add('chat-message', role);
+
+    if (role === 'user') {
+        msgDiv.textContent = content;
+    } else if (state === 'typing') {
+        msgDiv.classList.add('typing');
+        msgDiv.innerHTML = `<span class="typing-dot"></span><span class="typing-dot"></span><span class="typing-dot"></span>`;
+    } else {
+        // This will be updated by the streaming function
+        msgDiv.innerHTML = content;
+    }
+
+    messagesElement.appendChild(msgDiv);
+    messagesElement.scrollTop = messagesElement.scrollHeight;
+    return msgDiv;
+}
+
+
+// --- ★★★ HISTORY FUNCTIONS (ENHANCED) ★★★ ---
+
+/**
+ * A single function to save any report type to history.
+ */
+async function saveHistoryItem(item) {
+     try {
+        const { history = [] } = await chrome.storage.local.get('history');
+
+        const newEntry = {
+            id: item.id || `${item.type}_${Date.now()}`,
+            date: new Date().toISOString(),
+            ...item
+        };
+
+        history.unshift(newEntry);
+        if (history.length > 100) history.pop(); // Keep max 100 entries
+
+        await chrome.storage.local.set({ history });
+    } catch (error) {
+        console.error('Save history error:', error);
+    }
+}
+
+// saveAudit is now a specific wrapper for saveHistoryItem
+async function saveAudit(url, title, reportMarkdown, reportHTML, scores) {
+    await saveHistoryItem({
+        type: 'audit',
+        url: url,
+        title: title || url,
+        report: reportMarkdown,
+        html: reportHTML,
+        scores: scores
+    });
+}
+
+async function loadHistory() {
+    try {
+        const { history = [] } = await chrome.storage.local.get('history');
+
+        const historyContent = document.getElementById('history');
+        // Clear old list, but keep controls
+        historyContent.querySelectorAll('.history-item, .placeholder, .status-message').forEach(item => item.remove());
+
+        if (history.length === 0) {
+            historyContent.appendChild(getPlaceholderElement('history-empty')); // Use a specific empty placeholder
+            return;
+        }
+
+        const query = elements.historySearchInput.value.toLowerCase();
+        const filteredHistory = history.filter(item => {
+            const title = (item.title || item.url || '').toLowerCase();
+            return title.includes(query);
+        });
+
+        if (filteredHistory.length === 0) {
+            const noResults = document.createElement('div');
+            noResults.className = 'status-message info';
+            noResults.textContent = 'No matching reports found.';
+            historyContent.appendChild(noResults);
+            return;
+        }
+
+        filteredHistory.forEach(item => {
+            const itemEl = document.createElement('div');
+            itemEl.className = 'history-item';
+            itemEl.setAttribute('data-history-id', item.id);
+            itemEl.innerHTML = `
+                <div class="history-item-url">${escapeHtml(item.title)}</div>
+                <div class="history-item-date">${new Date(item.date).toLocaleString()}</div>
+            `;
+            itemEl.addEventListener('click', () => loadItemFromHistory(item.id));
+            historyContent.appendChild(itemEl);
+        });
+
+    } catch (error) {
+        console.error('Load history error:', error);
+        document.getElementById('history').appendChild(getPlaceholderElement('history-empty', 'Error', 'Could not load history.'));
+    }
+}
+
+// Renamed from loadAuditFromHistory to handle all types
+async function loadItemFromHistory(id) {
+    try {
+        const { history = [] } = await chrome.storage.local.get('history');
+        const item = history.find(h => h.id === id);
+
+        if (item) {
+            if (item.type === 'audit') {
+                currentAuditReport = { // Restore the object
+                    markdown: item.report,
+                    scores: item.scores,
+                    date: item.date
+                };
+                currentAuditUrl = item.url;
+                currentAuditReportHTML = item.html || renderMarkdown(item.report); // Re-render if HTML not saved
+                switchTab('auditor');
+                updateStatus('audit', `Loaded from ${new Date(item.date).toLocaleDateString()}`, 'info');
+            } else if (item.type === 'organizer') {
+                currentTabGroups = item.groups;
+                currentValidTabs = item.tabs; // Restore cached tabs
+                currentOrganizerReportHTML = item.html;
+                switchTab('organizer');
+                updateStatus('organizer', `Loaded from ${new Date(item.date).toLocaleDateString()}`, 'info');
+            } else if (item.type === 'docFlow') {
+                docFlowSteps = item.steps;
+                currentDocFlowReportHTML = item.html;
+                switchTab('docFlow');
+                updateStatus('docFlow', `Loaded from ${new Date(item.date).toLocaleDateString()}`, 'info');
+            }
+        }
+    } catch (error) {
+        console.error('Load item error:', error);
+    }
+}
+
+// Search now just re-renders the list
+function searchHistory() {
+    loadHistory();
+}
+
+async function clearHistory() {
+    if (confirm('Are you sure you want to delete ALL saved reports? This cannot be undone.')) {
+        await chrome.storage.local.set({ history: [] });
+        loadHistory();
     }
 }
 
 async function exportHistory() {
     try {
         const { history = [] } = await chrome.storage.local.get('history');
+         if (history.length === 0) {
+            alert('No history to export.');
+            return;
+        }
         const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(history, null, 2));
         const downloadAnchorNode = document.createElement('a');
         downloadAnchorNode.setAttribute("href", dataStr);
-        downloadAnchorNode.setAttribute("download", `spectrum_ai_history_${new Date().toISOString().slice(0, 10)}.json`);
+        downloadAnchorNode.setAttribute("download", `SpectrumAI_History_${new Date().toISOString().split('T')[0]}.json`);
         document.body.appendChild(downloadAnchorNode);
         downloadAnchorNode.click();
         downloadAnchorNode.remove();
-        updateStatus('history', 'History exported!', 'success');
     } catch (error) {
         console.error('Export history error:', error);
-        updateStatus('history', `Failed to export: ${error.message}`, 'error');
     }
 }
 
@@ -1156,7 +1556,7 @@ async function importHistory() {
     try {
         const fileInput = document.createElement('input');
         fileInput.type = 'file';
-        fileInput.accept = '.json';
+        fileInput.accept = '.json,application/json';
 
         fileInput.onchange = async (e) => {
             const file = e.target.files[0];
@@ -1172,24 +1572,23 @@ async function importHistory() {
 
                     const { history = [] } = await chrome.storage.local.get('history');
                     const mergedHistory = [...history];
+                    const existingIds = new Set(history.map(item => item.id));
 
                     for (const item of importedHistory) {
-                        // Prevent duplicates based on ID, or add if new
-                        if (!mergedHistory.some(existingItem => existingItem.id === item.id)) {
+                        if (item.id && !existingIds.has(item.id)) {
                             mergedHistory.push(item);
                         }
                     }
 
-                    // Sort by date descending and enforce limit
                     mergedHistory.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-                    const finalHistory = mergedHistory.slice(0, 100); // Enforce max 100 entries
+                    const finalHistory = mergedHistory.slice(0, 100);
 
                     await chrome.storage.local.set({ history: finalHistory });
-                    loadHistory(); // Reload history in UI
-                    updateStatus('history', 'History imported successfully!', 'success');
+                    loadHistory();
+                    alert('History imported successfully!');
                 } catch (parseError) {
                     console.error('Error parsing imported file:', parseError);
-                    updateStatus('history', `Failed to import: ${parseError.message}`, 'error');
+                    alert(`Failed to import: ${parseError.message}`);
                 }
             };
             reader.readAsText(file);
@@ -1197,134 +1596,251 @@ async function importHistory() {
         fileInput.click();
     } catch (error) {
         console.error('Import history error:', error);
-        updateStatus('history', `Failed to initiate import: ${error.message}`, 'error');
     }
 }
 
-async function loadHistory() {
-    try {
-        const { history = [] } = await chrome.storage.local.get('history');
+// --- ★★★ HELPER FUNCTIONS (REFINED) ★★★ ---
 
-        if (history.length === 0) {
-            if (elements.results) {
-                elements.results.innerHTML = `
-                    <div class="placeholder">
-                        <div style="font-size: 64px;">🕒</div>
-                        <h2>No History Yet</h2>
-                        <p>Past reports will appear here</p>
-                    </div>
-                `;
-            }
-            return;
+async function createAISession() {
+    try {
+        if (typeof self.LanguageModel !== 'undefined') {
+            // ★★★ FIX: Added outputLanguage to all calls ★★★
+            return await self.LanguageModel.create({
+                outputLanguage: 'en',
+                temperature: 0.2, // Lower temp for more factual, less "creative" responses
+                topK: 3
+            });
+        }
+    } catch (e) {
+        console.error("Failed to create AI session:", e);
+        throw new Error('AI Model is not ready or permission was denied.');
+    }
+    throw new Error('AI not available');
+}
+
+
+async function getPageContent() {
+    try {
+        const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+        if (!tab) throw new Error('No active tab found.');
+
+        if (tab.url.startsWith('chrome://') || tab.url.startsWith('chrome-extension://') || tab.url.startsWith('about:')) {
+            throw new Error('Cannot access Chrome internal pages or extensions');
         }
 
-        let html = '<div class="report-container">';
-
-        history.forEach(item => {
-            html += `
-                <div class="history-item" data-history-id="${item.id}">
-                    <div class="history-item-url">${escapeHtml(item.url)}</div>
-                    <div class="history-item-date">${new Date(item.date).toLocaleString()}</div>
-                </div>
-            `;
+        const [{ result }] = await chrome.scripting.executeScript({
+            target: { tabId: tab.id },
+            func: () => ({
+                content: document.body.innerText,
+                url: window.location.href,
+                title: document.title
+            })
         });
 
-        html += '</div>';
-
-        if (elements.results) elements.results.innerHTML = html;
-
-        setupHistoryEventDelegation();
-
-    } catch (error) {
-        console.error('Load history error:', error);
-    }
-}
-
-// Setup click events for history list
-function setupHistoryEventDelegation() {
-    const resultsContainer = elements.results;
-    if (!resultsContainer) return;
-
-    // Remove old listener if any
-    if (resultsContainer._historyListener) {
-        resultsContainer.removeEventListener('click', resultsContainer._historyListener);
-    }
-
-    const newListener = async (e) => {
-        const historyItem = e.target.closest('[data-history-id]');
-        if (!historyItem) return;
-
-        const id = historyItem.dataset.historyId;
-        await loadAuditFromHistory(id);
-    };
-
-    resultsContainer._historyListener = newListener;
-    resultsContainer.addEventListener('click', newListener);
-}
-
-// Load specific audit report from history by id
-async function loadAuditFromHistory(id) {
-    try {
-        const { history = [] } = await chrome.storage.local.get('history');
-        const item = history.find(h => h.id === id);
-
-        if (item) {
-            currentAuditReport = item.report;
-            currentAuditUrl = item.url;
-
-            if (elements.results) elements.results.innerHTML = `<div class="results-wrapper">${renderMarkdown(item.report)}</div>`;
-
-            if (elements.aiActionsPanel) elements.aiActionsPanel.style.display = 'block';
-            if (elements.auditorChatContainer) elements.auditorChatContainer.style.display = 'block';
-            if (elements.copyReportButton) elements.copyReportButton.style.display = 'block';
-
-            updateStatus('audit', `Loaded from ${new Date(item.date).toLocaleDateString()}`, 'info');
-
-            switchTab('auditor');
+        if (!result) {
+            throw new Error("Could not retrieve content. The page might be protected or still loading.");
         }
+        return result;
     } catch (error) {
-        console.error('Load audit error:', error);
+        console.error("getPageContent error:", error);
+        throw new Error(`Cannot access page content: ${error.message}`);
     }
 }
 
-// Search history UI based on input
-function searchHistory(e) {
-    const searchTerm = e.target.value.toLowerCase();
-    const historyItems = document.querySelectorAll('.history-item');
+function updateStatus(type, message, level = 'info') {
+    const statusElement = elements[`${type}Status`];
+    const textElement = elements[`${type}StatusText`];
+    if (!statusElement || !textElement) return;
 
-    historyItems.forEach(item => {
-        const url = item.querySelector('.history-item-url').textContent.toLowerCase();
-        item.style.display = url.includes(searchTerm) ? 'block' : 'none';
+    statusElement.style.display = 'flex';
+    statusElement.className = `status-message ${level}`;
+    textElement.textContent = message;
+
+    // Hide status after a few seconds for success/error
+    if (level === 'success' || level === 'error' || level === 'warning') {
+        setTimeout(() => {
+            if (textElement.textContent === message) { // Only hide if it's still the same message
+                 statusElement.style.display = 'none';
+            }
+        }, 4000);
+    }
+}
+
+function showLoader(type, show = true) {
+    const loader = elements[`${type}Loader`];
+    if (loader) loader.style.display = show ? 'block' : 'none';
+}
+
+function showError(message, module = 'audit') {
+    elements.results.innerHTML = getPlaceholderHTML('auditor', 'An Error Occurred', message);
+    updateStatus(module, message, 'error');
+}
+
+function copyReport() {
+    if (!currentAuditReport.markdown) return;
+    navigator.clipboard.writeText(currentAuditReport.markdown).then(() => {
+        updateStatus('audit', '📋 Copied!', 'success');
     });
 }
 
-// Clear entire history (prompt user for confirmation)
-async function clearHistory() {
-    if (confirm('Clear all history?')) {
-        await chrome.storage.local.set({ history: [] });
-        loadHistory();
+function escapeHtml(text = '') {
+    if (typeof text !== 'string') {
+        return '';
+    }
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+function escapeRegExp(string) {
+    return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+
+function renderMarkdown(text) {
+    if (!text) return '';
+    // Basic sanitation
+    text = text.replace(/<script\b[^>]*>([\s\S]*?)<\/script>/gim, "");
+    text = text.replace(/onerror\s*=\s*["']?[^"'>]+["']?/gim, "");
+    return marked.parse(text);
+}
+
+/**
+ * Generates placeholder HTML for different tabs.
+ * @param {string} module - The module name.
+ * @param {string} [title] - Optional title override.
+ * @param {string} [text] - Optional text override.
+ * @returns {HTMLElement} The placeholder element.
+ */
+function getPlaceholderElement(module, title, text) {
+    const placeholders = {
+        auditor: {
+            icon: '🔮',
+            title: 'Welcome to Auditor',
+            text: 'Click <strong>🚀 Run 12-Point Audit</strong> to analyze the current page.'
+        },
+        organizer: {
+            icon: '📂',
+            title: 'Welcome to Organizer',
+            text: 'Click <strong>Analyze & Group Tabs</strong> to sort your open tabs with AI.'
+        },
+        docFlow: {
+            icon: '📝',
+            title: 'Welcome to Doc Flow',
+            text: 'Click <strong>🎬 Start Recording</strong> to capture your workflow and generate a guide.'
+        },
+        history: {
+            icon: '🕒',
+            title: 'History',
+            text: 'Select a saved item from the left panel to view details.'
+        },
+        'history-empty': {
+            icon: '🕒',
+            title: 'No History',
+            text: 'Your saved reports will appear here.'
+        }
+    };
+    const p = placeholders[module] || placeholders.auditor;
+
+    const el = document.createElement('div');
+    el.className = 'placeholder';
+    el.innerHTML = `
+        <div style="font-size: 64px; margin-bottom: 20px;">${p.icon}</div>
+        <h2>${title || p.title}</h2>
+        <p>${text || p.text}</p>
+    `;
+    return el;
+}
+
+function getPlaceholderHTML(module, title, text) {
+     return getPlaceholderElement(module, title, text).outerHTML;
+}
+
+function setReportInfo(url, date) {
+    if (url && date) {
+        elements.reportUrl.textContent = url;
+        elements.reportDate.textContent = new Date(date).toLocaleString();
+        elements.reportInfo.style.display = 'flex';
+    } else {
+        elements.reportInfo.style.display = 'none';
+        elements.reportUrl.textContent = '';
+        elements.reportDate.textContent = '';
     }
 }
 
-// Save audit report to history in chrome storage
-async function saveAudit(url, report) {
-    try {
-        const { history = [] } = await chrome.storage.local.get('history');
-
-        const newEntry = {
-            id: Date.now().toString(),
-            url,
-            report,
-            date: new Date().toISOString()
-        };
-
-        history.unshift(newEntry);
-        if (history.length > 100) history.pop(); // Keep max 100 entries
-
-        await chrome.storage.local.set({ history });
-    } catch (error) {
-        console.error('Save audit error:', error);
+function renderAuditScoreChart(canvas, scores) {
+    if (window.chartInstance) {
+        window.chartInstance.destroy();
     }
-}
 
-console.log('✅ Spectrum AI Pro V3.0 JavaScript fully loaded - All parts');
+    const labels = Object.keys(scores);
+    const data = Object.values(scores);
+
+    const getBackgroundColor = (value) => {
+        if (value >= 90) return 'rgba(16, 185, 129, 0.7)'; // success
+        if (value >= 50) return 'rgba(245, 158, 11, 0.7)'; // warning
+        return 'rgba(239, 68, 68, 0.7)'; // error
+    };
+
+    const getBorderColor = (value) => {
+        if (value >= 90) return 'rgb(16, 185, 129)';
+        if (value >= 50) return 'rgb(245, 158, 11)';
+        return 'rgb(239, 68, 68)';
+    };
+
+    window.chartInstance = new Chart(canvas.getContext('2d'), {
+        type: 'radar',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'Audit Score',
+                data: data,
+                backgroundColor: data.map(getBackgroundColor),
+                borderColor: data.map(getBorderColor),
+                borderWidth: 2,
+                pointBackgroundColor: data.map(getBorderColor),
+                pointBorderColor: '#fff',
+                pointHoverBackgroundColor: '#fff',
+                pointHoverBorderColor: data.map(getBorderColor)
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                r: {
+                    angleLines: { color: 'rgba(0, 0, 0, 0.1)' },
+                    grid: { color: 'rgba(0, 0, 0, 0.1)' },
+                    pointLabels: {
+                        font: { size: 13, weight: '600' },
+                        color: '#0f172a'
+                    },
+                    ticks: {
+                        backdropColor: 'rgba(255, 255, 255, 0.7)',
+                        color: '#475569',
+                        beginAtZero: true,
+                        min: 0,
+                        max: 100,
+                        stepSize: 20
+                    }
+                }
+            },
+            plugins: {
+                legend: {
+                    display: false
+                },
+                tooltip: {
+                    enabled: true,
+                    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                    titleFont: { weight: 'bold' },
+                    bodyFont: { size: 14 },
+                    callbacks: {
+                        label: function(context) {
+                            return `${context.label}: ${context.raw / 10}/10`;
+                        }
+                    }
+                }
+            }
+        }
+    });
+}

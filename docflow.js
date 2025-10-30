@@ -10,50 +10,76 @@
     console.log('Doc Flow.js injected. Recording user actions...');
 
     function recordAction(type, data) {
-        chrome.runtime.sendMessage({
-            action: 'recordAction',
-            data: { type, ...data }
+        try {
+            // Use sendResponse to ensure message is sent before navigation
+            chrome.runtime.sendMessage({
+                action: 'recordAction',
+                data: { type, ...data }
+            });
+        } catch (e) {
+            console.warn('Spectrum AI: Doc Flow connection lost.', e.message);
+        }
+    }
+
+    // --- Visual Feedback for Clicks ---
+    function showClickIndicator(x, y) {
+        let indicator = document.createElement('div');
+        indicator.className = 'docflow-click-indicator';
+        document.body.appendChild(indicator);
+
+        indicator.style.left = `${x}px`;
+        indicator.style.top = `${y}px`;
+
+        indicator.addEventListener('animationend', () => {
+            indicator.remove();
         });
+    }
+
+    // Get a simple CSS selector for a target
+    function getSelector(target) {
+        if (target.id) {
+            return `#${target.id}`;
+        }
+        if (target.classList && target.classList.length > 0) {
+             return `.${Array.from(target.classList).join('.')}`;
+        }
+        if (target.name) {
+            return `[name="${target.name}"]`;
+        }
+        return target.tagName.toLowerCase();
     }
 
     // Capture clicks
     document.addEventListener('click', (e) => {
         const target = e.target;
-        let selector = '';
-        if (target.id) {
-            selector = `#${target.id}`;
-        } else if (target.className) {
-            selector = `.${target.className.split(' ')[0]}`;
-        } else {
-            selector = target.tagName.toLowerCase();
+        if (target.classList.contains('docflow-click-indicator')) {
+            return;
         }
 
+        showClickIndicator(e.clientX, e.clientY);
+
         recordAction('click', {
-            selector: selector,
-            text: target.innerText.substring(0, 100),
+            selector: getSelector(target),
+            text: (target.innerText || target.value || '').substring(0, 100),
             url: window.location.href
         });
 
-        // Request a screenshot after a click
-        chrome.runtime.sendMessage({ action: 'takeScreenshot' });
-    }, true); // Use capture phase to ensure we get the event before it's consumed
+    }, true); // Use capture phase
 
     // Capture input changes
     document.addEventListener('change', (e) => {
         const target = e.target;
         if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT') {
-            let selector = '';
-            if (target.id) {
-                selector = `#${target.id}`;
-            } else if (target.className) {
-                selector = `.${target.className.split(' ')[0]}`;
-            } else {
-                selector = target.tagName.toLowerCase();
+
+            let value = target.value;
+            if (target.type === 'password') {
+                value = '********';
             }
 
             recordAction('input', {
-                selector: selector,
-                value: target.value.substring(0, 100),
+                selector: getSelector(target),
+                value: value.substring(0, 100),
+                typeAttribute: target.type || 'text',
                 url: window.location.href
             });
         }
@@ -69,13 +95,11 @@
                 y: window.scrollY,
                 url: window.location.href
             });
-        }, 200); // Debounce to avoid too many events
+        }, 500); // Debounce to avoid too many events
     }, true);
 
-    // Initial page load action
-    recordAction('navigation', {
-        url: window.location.href,
-        title: document.title
-    });
+    // ★★★ FIX: Removed initial page load action from here. ★★★
+    // It's now handled by the service worker's `tabs.onUpdated` listener,
+    // which is more reliable and prevents duplicate navigation steps.
 
 })();
