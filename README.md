@@ -124,6 +124,13 @@ This is the most important section! The on-device AI requires Chrome 127+ and sp
 2. Select "Spectrum AI Pro" from the dropdown
 3. You're ready to test!
 
+# Spectrum AI Pro
+🚀 Your On-Device AI "Brain Boost" for Chrome 🚀  
+
+🎥 **Watch the Demo:** [Spectrum AI Pro - YouTube Demo](https://youtu.be/badMfl5kL2M&t=17s)
+
+
+
 ## 📄 License
 
 This project is released under the MIT License. This license is permissive, allowing for wide use and modification, which we believe is in the spirit of open-source innovation.
