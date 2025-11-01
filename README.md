@@ -19,50 +19,76 @@ By leveraging the `languageModel` permission and Chrome's built-in AI, Spectrum 
 
 ## ✨ Core Features
 
-Spectrum AI Pro integrates three powerful tools into your browser:
+Spectrum AI Pro seamlessly integrates **three AI tools** inside the Chrome side panel — designed to empower developers, researchers, and productivity enthusiasts.
 
-### 1. Enhanced Auditor
+### 1. 🧩 Enhanced Auditor
 
-The Auditor performs a deep, 12-point analysis of any webpage and provides actionable insights.
+Perform deep, AI-driven audits of any webpage with a **12-point evaluation system**:
 
 **12-Point Comprehensive Audit:**
-* Technical Foundation
-* Accessibility (A11y)
-* Performance
-* Security
-* User Experience (UX)
-* ...and 7 other key areas
+- Technical Foundation  
+- Accessibility (A11y)  
+- Performance  
+- Security  
+- UX & Design  
+- SEO Optimization  
+- Mobile Readiness  
+- Visual Stability  
+- Code Cleanliness  
+- Network Efficiency  
+- Metadata Quality  
+- Content Readability  
 
-**AI-Powered Features:**
-* **Summarize:** Get a concise executive summary of the full audit
+**AI-Powered Tools:**
+- **Summarize:** Condense audit insights  
+- **Proofread:** Fix grammar and clarity in page content  
+- **Rewrite Title:** Generate 5 SEO-friendly titles  
+- **Contextual Chat:** Ask interactive, content-aware questions  
+- **Export:** Save as JSON or PDF  
+- **History:** Auto-saves all past audits for re-access anytime
 
-* **Proofread:** Correct grammar and clarity on the page
-* **Rewrite Title:** Generate 5 SEO-optimized titles for the current page
-* **Contextual Chat:** Ask follow-up questions about the audit results
+---
 
-**Export & History:** Save reports as PDF or JSON, and access all past audits from a built-in history log.
+### 2. 🧠 Intelligent Tab Organizer
 
-### 2. Intelligent Tab Organizer
+Tame tab chaos with on-device intelligence that **analyzes and groups tabs by theme**.
 
-This module tames tab chaos by using AI to understand, group, and analyze your browsing sessions.
+- **AI Categorization:** Detects content clusters intelligently  
+- **Native Group Creation:** Auto-creates Chrome Tab Groups  
+- **Group Analysis:**
+  - *Summarize Group* → Overview of tab content  
+  - *Compare Group* → Contrast across tabs for quick insight  
+- **Persistent History:** All groups and actions stored locally
 
-* **AI-Powered Categorization:** Intelligently analyzes all open tabs and suggests logical groups
-* **Native Group Creation:** One-click-to-create native Chrome Tab Groups from the AI's suggestions
-* **Group-Based AI Actions:**
-    * **Summarize Group:** Get a summary of the common themes across a set of tabs
-    * **Compare Group:** Ask the AI to compare and contrast the content of tabs within a group
+---
 
-### 3. Doc Flow (AI Workflow Recorder)
+### 3. 📋 Doc Flow (AI Workflow Recorder)
 
-Doc Flow watches you perform a task and automatically generates beautiful, step-by-step guides.
+Record any workflow inside Chrome and auto-generate polished documentation.
 
-* **Automatic Recording:** Records clicks, navigation, and other interactions while you work
-* **AI-Generated Guides:** Converts raw actions into clear, human-readable instructions with screenshots
-* **Advanced AI Actions:**
+- **Automatic Recording:** Tracks clicks, navigation, and input  
+- **AI-Generated Instructions:** Converts raw steps into structured guides  
+- **Advanced AI Actions:**
+  - *Generalize Workflow* → Create reusable templates  
+  - *Generate Q&A* → Build FAQ or training documentation  
+- **Export:** Download formatted guides as PDFs  
+- **Local History:** Revisit or replay recorded sessions
 
-    * **Generalize Workflow:** Transforms a specific recording into a reusable template
-    * **Generate Q&A:** Creates Q&A based on the workflow for training docs
-* **Export:** Download the complete, formatted guide as a PDF
+---
+
+### 4. 🕓 History Tab
+
+Every audit, workflow, and tab group is automatically logged and retrievable in the **History Tab** — a unified dashboard for everything Spectrum AI Pro has analyzed or generated.
+
+**Features:**
+- Centralized log for all user actions  
+- Reopen, rename, or delete past sessions  
+- Full-text search across all saved results  
+- Export entire history as a backup (JSON format)
+
+The **History Tab** turns Spectrum AI Pro into a persistent, evolving workspace that grows with you.
+
+---
 
 ## 🎯 How We Meet the Judging Criteria
 
@@ -160,3 +186,13 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
+
+
+## 👨‍💻 Created By
+
+**Vaasu Nikhil Bobba**  
+🧩 *End-to-End Developer, Designer & Architect of Spectrum AI Pro*  
+📧 [Email](mailto:bobbanikhil@gmail.com)  
+🌐 [LinkedIn](https://www.linkedin.com/in/vaasu-nikhil-bobba-98324312b/)
+
+> Built with intent, precision, and passion — by one mind, from concept to completion.
